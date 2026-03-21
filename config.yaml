@@ -134,11 +134,38 @@ exclude_keywords:
 must_have_keywords: []
 
 # -----------------------------
-# 目标期刊监控（通过 OpenAlex ISSN 过滤）
-# 说明：直接抓取指定期刊的最新论文，不依赖关键词检索
-# 适合监控建筑学/体育空间/VR/行为轨迹领域的顶刊
+# 目标期刊监控（通过 OpenAlex ISSN 过滤 + 关键词预筛）
+# 说明：先锁定期刊范围，再用关键词在标题/摘要中预筛
+#       只有命中至少一个关键词的论文才会送去 AI 分析
+#       这样既不漏掉顶刊论文，又不会浪费 LLM API 调用在无关论文上
 # ISSN 可在期刊官网或 OpenAlex (https://openalex.org/sources) 查到
 # -----------------------------
+
+# 期刊论文预筛关键词（标题或摘要中至少命中一个才进入分析流程）
+# 留空 [] 则不预筛，所有期刊论文都送去 AI 分析
+journal_filter_keywords:
+  - "spatial behavior"
+  - "occupant behavior"
+  - "space use"
+  - "built environment"
+  - "indoor"
+  - "architecture"
+  - "virtual reality"
+  - "VR"
+  - "EEG"
+  - "eye tracking"
+  - "gaze"
+  - "spatial perception"
+  - "affordance"
+  - "trajectory"
+  - "mobility"
+  - "movement pattern"
+  - "spatiotemporal"
+  - "activity space"
+  - "sports facility"
+  - "stadium"
+  - "gymnasium"
+  - "campus"
 target_journals:
 
   # --- 建筑环境与空间行为 ---

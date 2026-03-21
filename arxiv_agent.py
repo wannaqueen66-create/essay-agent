@@ -772,9 +772,16 @@ def resolve_query_for_source(source_name: str, query_name: str, queries: dict, g
     return generic_queries.get(query_name) or queries.get(query_name, "")
 
 
-def fetch_journal_papers(journals: list[dict], days_back: int, max_per_journal: int) -> list[dict]:
-    """Fetch recent papers from specific journals via OpenAlex ISSN filtering."""
+def fetch_journal_papers(journals: list[dict], days_back: int, max_per_journal: int,
+                         relevance_keywords: list[str] | None = None) -> list[dict]:
+    """Fetch recent papers from specific journals via OpenAlex ISSN filtering.
+
+    If relevance_keywords is provided, only papers whose title or abstract
+    contain at least one keyword will be included. This avoids sending
+    irrelevant papers to the LLM for analysis.
+    """
     items = []
+    kw_lower = [k.lower() for k in (relevance_keywords or [])]
     from_date = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%d")
     for journal in journals:
         issn = journal.get("issn", "").strip()
@@ -789,7 +796,8 @@ def fetch_journal_papers(journals: list[dict], days_back: int, max_per_journal: 
                 "sort": "publication_date:desc",
             }
             data = requests.get(url, params=params, headers=REQUEST_HEADERS, timeout=30).json()
-            count = 0
+            fetched = 0
+            kept = 0
             for work in data.get("results", []):
                 abstract = ""
                 inverted = work.get("abstract_inverted_index")
@@ -801,11 +809,20 @@ def fetch_journal_papers(journals: list[dict], days_back: int, max_per_journal: 
                     abstract = " ".join(word for _, word in sorted(terms))
                 if not abstract:
                     abstract = work.get("title", "")
+                title = work.get("title", "").strip()
+                fetched += 1
+
+                # Keyword pre-filtering: skip papers unrelated to research direction
+                if kw_lower:
+                    combined = f"{title}\n{abstract}".lower()
+                    if not any(kw in combined for kw in kw_lower):
+                        continue
+
                 items.append(
                     {
                         "source": "journal",
                         "doi": normalize_doi(work.get("doi") or ""),
-                        "title": work.get("title", "").strip(),
+                        "title": title,
                         "abstract": abstract.strip(),
                         "url": work.get("primary_location", {}).get("landing_page_url")
                         or work.get("doi")
@@ -816,8 +833,8 @@ def fetch_journal_papers(journals: list[dict], days_back: int, max_per_journal: 
                         "categories": [c.get("display_name", "") for c in work.get("concepts", [])[:8] if c.get("display_name")],
                     }
                 )
-                count += 1
-            logger.info("  期刊 %s (ISSN %s): 获取 %d 篇", name, issn, count)
+                kept += 1
+            logger.info("  期刊 %s (ISSN %s): 获取 %d 篇, 关键词命中 %d 篇", name, issn, fetched, kept)
             time.sleep(1.5)
         except Exception:
             logger.exception("期刊 %s (ISSN %s) 抓取失败", name, issn)
@@ -1196,9 +1213,14 @@ def main():
 
     # --- 顶刊监控 ---
     target_journals = config.get("target_journals", [])
+    journal_filter_keywords = config.get("journal_filter_keywords", [])
     if target_journals:
-        logger.info("正在抓取目标期刊 (%d 本) ...", len(target_journals))
-        journal_items = fetch_journal_papers(target_journals, days_back, max_results_per_query)
+        logger.info("正在抓取目标期刊 (%d 本), 关键词预筛: %s ...",
+                     len(target_journals), journal_filter_keywords[:5] if journal_filter_keywords else "无")
+        journal_items = fetch_journal_papers(
+            target_journals, days_back, max_results_per_query,
+            relevance_keywords=journal_filter_keywords or None,
+        )
         stats["source_details"]["journal"] = {"fetched": len(journal_items), "error": ""}
 
         for item in journal_items:
