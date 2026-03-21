@@ -6,91 +6,77 @@
 
 它可以完成这样一条完整流程：
 
-1. 从多个学术数据源抓取近期论文
-2. 调用 OpenAI 或兼容接口进行结构化分析
-3. 生成中文摘要与研究字段提取结果
-4. 根据相关性阈值进行筛选
-5. 将历史结果写入 SQLite 数据库
-6. 输出 Markdown / Excel / JSON 日报
-7. 可选通过 Brevo SMTP 发送邮件
-
-这个项目适合希望“每天自动收集新论文、快速做初筛、减少手动阅读摘要成本”的研究者。
+1. 从 6 个学术数据源 + 目标顶刊抓取近期论文
+2. 调用 OpenAI 或兼容接口进行结构化分析（中文摘要 + 14 个结构化字段）
+3. 根据相关性阈值进行筛选
+4. 将历史结果写入 SQLite 数据库（带缓存和去重）
+5. 输出 Markdown / Excel / JSON 日报
+6. 可选通过 Brevo SMTP 发送邮件（含 0 篇诊断信息）
 
 ---
 
-## 已实现功能
+## 功能特性
 
-### 1. 多源文献抓取
+- **6 个数据源** — arXiv、OpenAlex、Crossref、Semantic Scholar、Europe PMC、CORE
+- **顶刊直接监控** — 通过 ISSN 过滤直接追踪 16+ 本领域核心期刊
+- **AI 结构化分析** — 中文摘要 + 研究主题、自变量/因变量、方法、结论、相关性分数等
+- **SQLite 优化** — WAL 模式、索引、批量提交，适配低配 VPS
+- **结构化日志** — 带时间戳和级别，异常完整记录
+- **诊断报告** — 0 篇时邮件/Markdown 显示完整诊断链（各源状态、各阶段过滤数、可能原因）
+- **速率限制** — API 调用间自动延时，防止 429 错误
+- **待展示池补位** — 当日不足时自动从近期高分论文补充
+- **一键部署** — `deploy.sh` 支持 Ubuntu/Debian VPS 一键安装
+- **systemd 定时** — 每天 07:00 自动运行，带内存/CPU 限制保护
+- **1C1G 适配** — 内存限制 768M，CPU 限制 80%
 
-当前支持以下来源：
+---
 
-- arXiv
-- OpenAlex
-- Crossref
-- Semantic Scholar
+## 支持的数据源
 
-### 2. AI 结构化分析
+| 数据源 | 类型 | 需要认证 | 说明 |
+|--------|------|----------|------|
+| **arXiv** | 预印本 | 否 | 支持分类检索（cs.HC、physics.soc-ph 等） |
+| **OpenAlex** | 聚合器 | 否 | 覆盖面广，倒排索引摘要重建 |
+| **Crossref** | 元数据 | 否 | 基于 DOI，期刊文章 |
+| **Semantic Scholar** | 聚合器 | 否 | AI/NLP 方向强，限速 1 req/sec |
+| **Europe PMC** | 生物医学 | 否 | VR + EEG/眼动方向特别有价值 |
+| **CORE** | 开放获取 | 免费 API key | 3 亿+ 文档，灰色文献和会议论文 |
 
-程序会基于论文标题和英文摘要，生成适合空间研究场景使用的结构化分析，包括：
+在 `config.yaml` → `sources` 中配置启用的数据源。
 
-- 中文摘要
-- 研究主题
-- 空间/场景类型
-- 研究场景
-- 自变量
-- 因变量
-- 行为指标
-- 生理/感知指标
-- 研究方法
-- 数据/样本
-- 主要结论
-- 与建筑/体育空间研究相关性
-- 相关性分数
-- 可借鉴启发
+---
 
-### 3. 英文摘要保留
+## 目标期刊监控
 
-系统会同时保留：
+除了关键词检索外，essay-agent 还能通过 OpenAlex ISSN 过滤直接监控指定期刊的最新论文。这样即使论文标题/摘要不包含你的检索关键词，只要发表在目标期刊上就会被抓取到。
 
-- 英文原始摘要
-- 中文摘要
-- 中文结构化分析
+已预置的期刊（在 `config.yaml` → `target_journals` 中配置）：
 
-### 4. SQLite 缓存与历史记录
+**建筑环境与空间行为：**
+- Building and Environment (0360-1323)
+- Environment and Behavior (0013-9165)
+- Journal of Environmental Psychology (0272-4944)
+- Architectural Science Review (0003-8628)
+- Indoor Air (1600-0668)
 
-使用 `papers.db` 记录：
+**体育科学与运动空间：**
+- Journal of Sports Sciences (0264-0414)
+- International Review for the Sociology of Sport (1012-6902)
+- European Sport Management Quarterly (1618-4742)
 
-- 已抓取论文
-- 已分析论文
-- 是否达到相关性阈值
-- 是否进入待展示池
-- 是否已经展示
-- 是否已经邮件上报
+**VR / 人机交互 / 感知：**
+- Virtual Reality (1359-4338)
+- Computers in Human Behavior (0747-5632)
+- International Journal of Human-Computer Studies (1071-5819)
+- Presence: Teleoperators and Virtual Environments (1054-7460)
 
-### 5. 相关性阈值过滤
+**行为轨迹 / 时空行为 / 城市空间：**
+- Transportation Research Part C (0968-090X)
+- Journal of Transport Geography (0966-6923)
+- Computers, Environment and Urban Systems (0198-9715)
+- Applied Geography (0143-6228)
 
-可通过 `.env` 中的 `MIN_RELEVANCE_SCORE` 控制最低分数要求。
-
-### 6. 待展示池补位
-
-当当天新增的高相关论文数量不足时，会从最近若干天的待展示池中补位，保证日报不至于过空。
-
-### 7. 输出日报
-
-每次运行后默认输出：
-
-- `output/arxiv_daily_YYYY-MM-DD.xlsx`
-- `output/arxiv_daily_YYYY-MM-DD.md`
-- `output/arxiv_daily_YYYY-MM-DD_stats.json`
-
-### 8. 邮件推送
-
-可通过 Brevo SMTP 发送日报邮件，包括：
-
-- 邮件正文简报
-- Markdown 附件
-- Excel 附件
-- JSON 统计附件
+添加更多期刊：在 `target_journals` 列表中加入 `name` 和 `issn` 即可。ISSN 可在 [OpenAlex Sources](https://openalex.org/sources) 或期刊官网查到。
 
 ---
 
@@ -98,201 +84,173 @@
 
 ```text
 essay-agent/
-├── arxiv_agent.py
-├── config.yaml
-├── requirements.txt
-├── .env.example
-├── inspect_db.py
-├── reset_reported.py
-├── send_output_email.py
-├── show_pending_pool.py
-├── test_email.py
+├── arxiv_agent.py          # 主程序
+├── config.yaml             # 配置（检索式、数据源、期刊列表）
+├── requirements.txt        # Python 依赖（已锁定版本范围）
+├── .env.example            # 环境变量模板
+├── deploy.sh               # 一键部署脚本
+├── deploy/
+│   ├── arxiv-agent.service # systemd 服务单元
+│   └── arxiv-agent.timer   # systemd 定时器
+├── inspect_db.py           # 数据库检查
+├── reset_reported.py       # 重置展示/上报状态
+├── send_output_email.py    # 重发已有报告
+├── show_pending_pool.py    # 查看待展示池
+├── test_email.py           # 测试邮箱配置
 ├── README.md
 ├── README.zh-CN.md
 └── LICENSE
 ```
 
-运行过程中会额外生成：
+运行时生成：
 
 ```text
-papers.db
-output/
+papers.db                   # SQLite 数据库（WAL 模式）
+output/                     # 日报输出目录
 ```
 
 ---
 
 ## 部署与运行
 
-### 1. 安装系统环境
+### 手动部署
 
 ```bash
+# 1. 安装系统依赖
 apt update && apt install -y python3 python3-pip python3-venv
-```
 
-### 2. 克隆仓库
-
-```bash
+# 2. 克隆仓库
 git clone git@github.com:wannaqueen66-create/essay-agent.git
 cd essay-agent
-```
 
-### 3. 创建虚拟环境
-
-```bash
+# 3. 创建虚拟环境
 python3 -m venv .venv
 source .venv/bin/activate
-```
 
-### 4. 安装依赖
-
-```bash
+# 4. 安装依赖
 pip install -r requirements.txt
-```
 
-### 5. 创建环境变量文件
-
-```bash
+# 5. 创建并编辑环境变量
 cp .env.example .env
-```
+# 编辑 .env：填写 OPENAI_API_KEY 等
 
-### 6. 编辑 `.env`
-
-至少需要填写：
-
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_BASE_URL=
-OPENAI_MODEL=gpt-4.1-mini
-DAYS_BACK=2
-MAX_RESULTS_PER_QUERY=30
-MIN_RELEVANCE_SCORE=70
-FORCE_REFRESH=false
-```
-
-如果需要启用邮件推送，还需要继续填写：
-
-```env
-EMAIL_ENABLED=true
-EMAIL_SMTP_HOST=smtp-relay.brevo.com
-EMAIL_SMTP_PORT=587
-EMAIL_USERNAME=your_brevo_smtp_username
-EMAIL_PASSWORD=your_brevo_smtp_password
-EMAIL_FROM=you@example.com
-EMAIL_TO=you@example.com
-EMAIL_USE_TLS=true
-REPORT_TOP_N=10
-EMAIL_TOP_N=5
-PENDING_POOL_DAYS=7
-EMPTY_REPORT_EMAIL=true
-```
-
-### 7. 运行程序
-
-```bash
+# 6. 运行
 python arxiv_agent.py
 ```
+
+### 一键部署（推荐）
+
+适用于 Ubuntu/Debian VPS（1C1G 及以上）：
+
+```bash
+sudo bash deploy.sh
+```
+
+部署脚本会自动完成：
+1. 安装系统依赖
+2. 创建服务用户 `arxiv-agent`
+3. 部署应用到 `/opt/arxiv-agent`
+4. 创建虚拟环境并安装依赖
+5. 从模板创建 `.env`（需手动编辑）
+6. 安装 systemd 服务和定时器（每天 07:00）
+7. 设置权限（`.env` 为 600）
+
+部署后：
+
+```bash
+# 编辑配置
+sudo nano /opt/arxiv-agent/.env
+
+# 手动运行一次
+sudo -u arxiv-agent /opt/arxiv-agent/.venv/bin/python /opt/arxiv-agent/arxiv_agent.py
+
+# 查看日志
+journalctl -u arxiv-agent -f
+
+# 定时器状态
+systemctl status arxiv-agent.timer
+```
+
+---
+
+## 环境变量说明
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `OPENAI_API_KEY` | *（必填）* | OpenAI 或兼容接口 API Key |
+| `OPENAI_BASE_URL` | *（空）* | 兼容接口 Base URL |
+| `OPENAI_MODEL` | `gpt-4.1-mini` | 模型名称 |
+| `DAYS_BACK` | `2` | 抓取最近几天的论文 |
+| `MAX_RESULTS_PER_QUERY` | `30` | 每个 query 每个源最大抓取数 |
+| `MIN_RELEVANCE_SCORE` | `70` | 最低相关性阈值（0-100） |
+| `FORCE_REFRESH` | `false` | 忽略缓存强制重跑 |
+| `CORE_API_KEY` | *（空）* | CORE 免费 API key |
+| `EMAIL_ENABLED` | `false` | 启用邮件推送 |
+| `EMAIL_SMTP_HOST` | `smtp-relay.brevo.com` | SMTP 主机 |
+| `EMAIL_SMTP_PORT` | `587` | SMTP 端口 |
+| `EMAIL_USERNAME` | | SMTP 用户名 |
+| `EMAIL_PASSWORD` | | SMTP 密码 |
+| `EMAIL_FROM` | | 发件人 |
+| `EMAIL_TO` | | 收件人（多个用英文逗号分隔） |
+| `EMAIL_USE_TLS` | `true` | 启用 TLS |
+| `REPORT_TOP_N` | `10` | Markdown 展示前 N 条 |
+| `EMAIL_TOP_N` | `5` | 邮件正文展示前 N 条 |
+| `PENDING_POOL_DAYS` | `7` | 待展示池时间窗口 |
+| `EMPTY_REPORT_EMAIL` | `true` | 0 篇时也发邮件（含诊断信息） |
 
 ---
 
 ## 配置说明
 
-### `.env` 里常见参数
+### config.yaml 主要配置项
 
-- `OPENAI_API_KEY`：OpenAI 或兼容提供商 API Key
-- `OPENAI_BASE_URL`：兼容接口 Base URL
-- `OPENAI_MODEL`：模型名称
-- `DAYS_BACK`：抓取最近几天论文
-- `MAX_RESULTS_PER_QUERY`：每个 query 在每个源抓多少条
-- `MIN_RELEVANCE_SCORE`：最低相关性阈值
-- `FORCE_REFRESH`：是否忽略缓存强制重跑
-- `EMAIL_ENABLED`：是否启用邮件推送
-- `REPORT_TOP_N`：Markdown 里展示多少条重点论文
-- `EMAIL_TOP_N`：邮件正文里展示多少条重点论文
-- `PENDING_POOL_DAYS`：待展示池时间窗口
-- `EMPTY_REPORT_EMAIL`：日报为空时是否也发邮件
-
-### `config.yaml` 里常见参数
-
-- `queries`：arXiv 专用检索式
-- `generic_queries`：OpenAlex / Crossref / Semantic Scholar 使用的自然语言检索式
-- `sources`：启用的数据源
-- `exclude_keywords`：排噪关键词
-- `must_have_keywords`：必须命中的关键词
-- `db_path`：数据库路径
-- `analysis_retries`：模型分析失败重试次数
-- `retry_delay_seconds`：重试间隔秒数
+| 配置项 | 说明 |
+|--------|------|
+| `queries` | arXiv 专用检索式（含 `cat:` 分类语法） |
+| `generic_queries` | 通用文献源检索式（OpenAlex/Crossref/Semantic Scholar/Europe PMC） |
+| `target_journals` | 目标期刊 ISSN 列表（通过 OpenAlex 过滤） |
+| `sources` | 启用的数据源列表 |
+| `exclude_keywords` | 排噪关键词 |
+| `must_have_keywords` | 必须命中的关键词 |
+| `db_path` | 数据库路径 |
+| `analysis_retries` | AI 分析重试次数 |
+| `retry_delay_seconds` | 重试间隔（指数退避） |
 
 ---
 
-## 输出结果说明
+## 输出结果
 
-### Excel
+每次运行后生成：
 
-适合：
+```text
+output/arxiv_daily_YYYY-MM-DD.xlsx       # 可排序筛选的表格
+output/arxiv_daily_YYYY-MM-DD.md         # 可阅读的报告（含 TOP N）
+output/arxiv_daily_YYYY-MM-DD_stats.json # 运行统计（含各源状态）
+```
 
-- 排序
-- 筛选
-- 人工复核
-- 做后续综述整理
-
-### Markdown
-
-适合：
-
-- 快速阅读
-- 汇报展示
-- 每日浏览高相关论文
-
-### stats.json
-
-适合：
-
-- 查看运行统计
-- 判断抓取是否正常
-- 判断缓存命中和分析成功率
+当收录 0 篇时，Markdown 和邮件报告会自动包含完整诊断信息：
+- 各阶段过滤数量（总抓取、日期过旧、重复、排除关键词、阈值不达标等）
+- 各数据源独立状态（抓取数 / 错误信息）
+- 可能原因建议
 
 ---
 
 ## 辅助脚本
 
-### 查看数据库总览
-
 ```bash
-python inspect_db.py
-```
-
-### 查看当前待展示池
-
-```bash
-python show_pending_pool.py
-```
-
-### 重置展示/上报状态
-
-```bash
-python reset_reported.py all
-python reset_reported.py displayed
-python reset_reported.py both
-```
-
-### 测试邮箱
-
-```bash
-python test_email.py
-```
-
-### 只用 output 结果重发邮件
-
-```bash
-python send_output_email.py --mark-db
-python send_output_email.py --date 2026-03-08 --mark-db
+python inspect_db.py                          # 数据库总览
+python show_pending_pool.py                   # 查看待展示池
+python reset_reported.py all|displayed|both   # 重置状态
+python test_email.py                          # 测试邮箱
+python send_output_email.py --mark-db         # 重发今日报告
+python send_output_email.py --date 2026-03-08 # 重发历史报告
 ```
 
 ---
 
 ## 推荐默认配置
 
-建议第一次先用比较保守的参数跑通：
+第一次运行建议用保守参数：
 
 ```env
 OPENAI_MODEL=gpt-4.1-mini
@@ -303,46 +261,32 @@ FORCE_REFRESH=false
 EMAIL_ENABLED=false
 ```
 
-这样可以先验证：
-
-- 数据源能否正常返回
-- 模型接口能否正常工作
-- 输出文件是否能正确生成
-- 数据库是否能正常写入
+验证通过后再逐步放大 `DAYS_BACK` 和 `MAX_RESULTS_PER_QUERY`。
 
 ---
 
-## 当前限制
+## systemd 定时服务
 
-这个项目已经具备“可直接使用”的完整流程，但仍然属于偏实用型原型，主要限制包括：
+项目在 `deploy/` 目录下提供了现成的 systemd 文件：
 
-1. 主逻辑仍然集中在单个 Python 文件中
-2. 错误处理偏实用，日志可观测性不够强
-3. `requirements.txt` 尚未锁定版本
-4. 更适合个人科研使用，不算完全工程化项目
+- `arxiv-agent.service` — oneshot 服务，含内存/CPU 限制
+  - `MemoryMax=768M`（保护 1G VPS 不被 OOM kill）
+  - `CPUQuota=80%`（防止独占单核）
+  - `TimeoutStartSec=600`（10 分钟超时保护）
+- `arxiv-agent.timer` — 每天 07:00 触发，`Persistent=true`（错过时间开机补跑）
 
-也就是说，它现在是一个：
+手动安装：
 
-- **能跑**
-- **有闭环**
-- **适合自己日常监测**
+```bash
+sudo cp deploy/arxiv-agent.service deploy/arxiv-agent.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now arxiv-agent.timer
+```
 
-但如果以后要长期稳定维护、多人协作或公开交付，建议进一步做模块化拆分与工程整理。
+或直接使用 `sudo bash deploy.sh` 自动安装。
 
 ---
 
-## 总结
+## 许可证
 
-`essay-agent` 不是单纯的抓论文脚本，而是一个已经具备：
-
-- 多源抓取
-- AI 结构化分析
-- SQLite 缓存
-- 阈值过滤
-- 待展示池补位
-- 日报输出
-- 邮件推送
-
-完整闭环的实用型科研工具。
-
-如果你的目标是每天自动监测建筑学 / 体育空间 / VR / 行为轨迹相关的新论文，这个项目是有实际使用价值的。
+本仓库使用已有的 `LICENSE` 文件。

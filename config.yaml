@@ -134,6 +134,81 @@ exclude_keywords:
 must_have_keywords: []
 
 # -----------------------------
+# 目标期刊监控（通过 OpenAlex ISSN 过滤 + 关键词预筛）
+# 说明：先锁定期刊范围，再用关键词在标题/摘要中预筛
+#       只有命中至少一个关键词的论文才会送去 AI 分析
+#       这样既不漏掉顶刊论文，又不会浪费 LLM API 调用在无关论文上
+# ISSN 可在期刊官网或 OpenAlex (https://openalex.org/sources) 查到
+# -----------------------------
+
+# 期刊论文预筛关键词（标题或摘要中至少命中一个才进入分析流程）
+# 留空 [] 则不预筛，所有期刊论文都送去 AI 分析
+journal_filter_keywords:
+  - "spatial behavior"
+  - "occupant behavior"
+  - "space use"
+  - "built environment"
+  - "indoor"
+  - "architecture"
+  - "virtual reality"
+  - "VR"
+  - "EEG"
+  - "eye tracking"
+  - "gaze"
+  - "spatial perception"
+  - "affordance"
+  - "trajectory"
+  - "mobility"
+  - "movement pattern"
+  - "spatiotemporal"
+  - "activity space"
+  - "sports facility"
+  - "stadium"
+  - "gymnasium"
+  - "campus"
+target_journals:
+
+  # --- 建筑环境与空间行为 ---
+  - name: "Building and Environment"
+    issn: "0360-1323"
+  - name: "Environment and Behavior"
+    issn: "0013-9165"
+  - name: "Journal of Environmental Psychology"
+    issn: "0272-4944"
+  - name: "Architectural Science Review"
+    issn: "0003-8628"
+  - name: "Indoor Air"
+    issn: "1600-0668"
+
+  # --- 体育科学与运动空间 ---
+  - name: "Journal of Sports Sciences"
+    issn: "0264-0414"
+  - name: "International Review for the Sociology of Sport"
+    issn: "1012-6902"
+  - name: "European Sport Management Quarterly"
+    issn: "1618-4742"
+
+  # --- VR / 人机交互 / 感知 ---
+  - name: "Virtual Reality"
+    issn: "1359-4338"
+  - name: "Computers in Human Behavior"
+    issn: "0747-5632"
+  - name: "International Journal of Human-Computer Studies"
+    issn: "1071-5819"
+  - name: "Presence Teleoperators and Virtual Environments"
+    issn: "1054-7460"
+
+  # --- 行为轨迹 / 时空行为 / 城市空间 ---
+  - name: "Transportation Research Part C"
+    issn: "0968-090X"
+  - name: "Journal of Transport Geography"
+    issn: "0966-6923"
+  - name: "Computers Environment and Urban Systems"
+    issn: "0198-9715"
+  - name: "Applied Geography"
+    issn: "0143-6228"
+
+# -----------------------------
 # 运行与缓存设置
 # -----------------------------
 db_path: "papers.db"          # SQLite 历史库，用于缓存分析结果与去重
