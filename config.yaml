@@ -142,10 +142,14 @@ retry_delay_seconds: 3        # 每次重试前的基础等待秒数
 
 # -----------------------------
 # 多文献源设置
-# 可选：arxiv / openalex / crossref / semantic_scholar
+# 可选：arxiv / openalex / crossref / semantic_scholar / europepmc / core
+# europepmc：Europe PMC，覆盖生物医学/神经科学，VR+EEG/眼动方向特别有价值，免费无需认证
+# core：CORE 开放获取聚合器，收录 3 亿+ 文档，需要免费 API key（在 .env 中配置 CORE_API_KEY）
 # -----------------------------
 sources:
   - arxiv
   - openalex
   - crossref
   - semantic_scholar
+  - europepmc
+  # - core          # 需要在 .env 中配置 CORE_API_KEY 后启用

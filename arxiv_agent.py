@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import smtplib
 import sqlite3
@@ -14,6 +15,12 @@ import yaml
 from dotenv import load_dotenv
 from openai import OpenAI
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("arxiv_agent")
 
 DB_PATH = "papers.db"
 REQUEST_HEADERS = {"User-Agent": "arxiv-agent/1.0"}
@@ -51,7 +58,7 @@ def load_env() -> tuple[OpenAI, dict]:
         "openai_model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
         "days_back": int(os.getenv("DAYS_BACK", "2")),
         "max_results_per_query": int(os.getenv("MAX_RESULTS_PER_QUERY", "30")),
-        "min_relevance_score": int(os.getenv("MIN_RELEVANCE_SCORE", "0")),
+        "min_relevance_score": int(os.getenv("MIN_RELEVANCE_SCORE", "70")),
         "force_refresh": parse_bool(os.getenv("FORCE_REFRESH"), False),
         "email_enabled": parse_bool(os.getenv("EMAIL_ENABLED"), False),
         "email_smtp_host": os.getenv("EMAIL_SMTP_HOST", "smtp-relay.brevo.com"),
@@ -97,7 +104,9 @@ def contains_must_have_keyword(text: str, must_have_keywords: list[str]) -> bool
 
 
 def init_db(db_path: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=10)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS papers (
@@ -129,6 +138,11 @@ def init_db(db_path: str) -> sqlite3.Connection:
         )
         """
     )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_papers_doi ON papers(doi) WHERE doi != ''")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_papers_displayed ON papers(displayed_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_papers_reported ON papers(reported_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_papers_published ON papers(published_date)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_papers_pending ON papers(displayed_at, meets_threshold, eligible_for_pending, analysis_status)")
     conn.commit()
     return conn
 
@@ -216,57 +230,33 @@ def was_displayed(conn: sqlite3.Connection, url: str, doi: str = "") -> bool:
     return bool(row and row[0])
 
 
+def _batch_update(conn: sqlite3.Connection, sql: str, keys: list[str]):
+    if not keys:
+        return
+    now = datetime.now().isoformat(timespec="seconds")
+    placeholders = ",".join("?" * len(keys))
+    conn.execute(sql.format(placeholders=placeholders), [now, now] + keys)
+
+
 def mark_reported(conn: sqlite3.Connection, urls: list[str], dois: list[str]):
     if not urls and not dois:
         return
-    now = datetime.now().isoformat(timespec="seconds")
-    for url in urls:
-        conn.execute(
-            """
-            UPDATE papers
-            SET reported_at = ?, report_count = COALESCE(report_count, 0) + 1, updated_at = ?
-            WHERE url = ?
-            """,
-            (now, now, url),
-        )
-    for doi in [d for d in dois if d]:
-        conn.execute(
-            """
-            UPDATE papers
-            SET reported_at = ?, report_count = COALESCE(report_count, 0) + 1, updated_at = ?
-            WHERE doi = ?
-            """,
-            (now, now, doi),
-        )
+    _batch_update(conn, "UPDATE papers SET reported_at=?, report_count=COALESCE(report_count,0)+1, updated_at=? WHERE url IN ({placeholders})", urls)
+    clean_dois = [d for d in dois if d]
+    _batch_update(conn, "UPDATE papers SET reported_at=?, report_count=COALESCE(report_count,0)+1, updated_at=? WHERE doi IN ({placeholders})", clean_dois)
     conn.commit()
 
 
 def mark_displayed(conn: sqlite3.Connection, urls: list[str], dois: list[str]):
     if not urls and not dois:
         return
-    now = datetime.now().isoformat(timespec="seconds")
-    for url in urls:
-        conn.execute(
-            """
-            UPDATE papers
-            SET displayed_at = ?, display_count = COALESCE(display_count, 0) + 1, updated_at = ?
-            WHERE url = ?
-            """,
-            (now, now, url),
-        )
-    for doi in [d for d in dois if d]:
-        conn.execute(
-            """
-            UPDATE papers
-            SET displayed_at = ?, display_count = COALESCE(display_count, 0) + 1, updated_at = ?
-            WHERE doi = ?
-            """,
-            (now, now, doi),
-        )
+    _batch_update(conn, "UPDATE papers SET displayed_at=?, display_count=COALESCE(display_count,0)+1, updated_at=? WHERE url IN ({placeholders})", urls)
+    clean_dois = [d for d in dois if d]
+    _batch_update(conn, "UPDATE papers SET displayed_at=?, display_count=COALESCE(display_count,0)+1, updated_at=? WHERE doi IN ({placeholders})", clean_dois)
     conn.commit()
 
 
-def load_pending_pool(conn: sqlite3.Connection, days: int, limit: int) -> pd.DataFrame:
+def load_pending_pool(conn: sqlite3.Connection, days: int, limit: int) -> list[dict]:
     cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
     rows = conn.execute(
         """
@@ -285,7 +275,7 @@ def load_pending_pool(conn: sqlite3.Connection, days: int, limit: int) -> pd.Dat
     ).fetchall()
 
     if not rows:
-        return pd.DataFrame()
+        return []
 
     items = []
     for row in rows:
@@ -293,7 +283,7 @@ def load_pending_pool(conn: sqlite3.Connection, days: int, limit: int) -> pd.Dat
         try:
             analysis = json.loads(row[11])
         except Exception:
-            analysis = {}
+            pass
         items.append(
             {
                 "doi": row[0],
@@ -323,7 +313,7 @@ def load_pending_pool(conn: sqlite3.Connection, days: int, limit: int) -> pd.Dat
                 "原始分析": analysis.get("原始分析", ""),
             }
         )
-    return pd.DataFrame(items)
+    return items
 
 
 def upsert_paper(
@@ -414,7 +404,6 @@ def upsert_paper(
             now,
         ),
     )
-    conn.commit()
 
 
 def parse_analysis_text(text: str) -> dict:
@@ -504,15 +493,19 @@ def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries
     last_error = None
     for attempt in range(1, retries + 1):
         try:
-            response = client.responses.create(model=model, input=prompt)
-            text = response.output_text.strip()
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.choices[0].message.content.strip()
             result = parse_analysis_text(text)
             result["分析状态"] = "success"
             return result
         except Exception as e:
             last_error = e
+            logger.warning("LLM 分析第 %d 次失败: %s", attempt, e)
             if attempt < retries:
-                time.sleep(retry_delay * attempt)
+                time.sleep(retry_delay * (2 ** (attempt - 1)))
 
     return {
         "中文摘要": "",
@@ -607,6 +600,7 @@ def fetch_openalex_results(query_text: str, max_results: int) -> list[dict]:
                 }
             )
     except Exception:
+        logger.exception("OpenAlex 抓取失败, query: %s", query_text[:100])
         return []
     return items
 
@@ -638,6 +632,7 @@ def fetch_crossref_results(query_text: str, max_results: int) -> list[dict]:
                 }
             )
     except Exception:
+        logger.exception("Crossref 抓取失败, query: %s", query_text[:100])
         return []
     return items
 
@@ -668,6 +663,89 @@ def fetch_semantic_scholar_results(query_text: str, max_results: int) -> list[di
                 }
             )
     except Exception:
+        logger.exception("Semantic Scholar 抓取失败, query: %s", query_text[:100])
+        return []
+    return items
+
+
+def fetch_europepmc_results(query_text: str, max_results: int) -> list[dict]:
+    items = []
+    try:
+        url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+        params = {
+            "query": query_text,
+            "resultType": "core",
+            "pageSize": min(max_results, 25),
+            "sort": "P_PDATE_D desc",
+            "format": "json",
+        }
+        data = requests.get(url, params=params, headers=REQUEST_HEADERS, timeout=30).json()
+        for work in data.get("resultList", {}).get("result", []):
+            abstract = (work.get("abstractText") or work.get("title") or "").strip()
+            title = (work.get("title") or "").strip()
+            date_str = work.get("firstPublicationDate") or "1970-01-01"
+            doi = normalize_doi(work.get("doi") or "")
+            paper_url = f"https://europepmc.org/article/{work.get('source', 'MED')}/{work.get('id', '')}"
+            if doi:
+                paper_url = f"https://doi.org/{doi}"
+            authors_str = work.get("authorString") or ""
+            items.append(
+                {
+                    "source": "europepmc",
+                    "doi": doi,
+                    "title": title,
+                    "abstract": abstract,
+                    "url": paper_url,
+                    "published": datetime.fromisoformat(date_str + "T00:00:00+00:00"),
+                    "authors": [a.strip() for a in authors_str.split(",") if a.strip()][:20],
+                    "primary_category": work.get("journalTitle") or "",
+                    "categories": [kw.strip() for kw in (work.get("keywordList", {}).get("keyword") or [])[:8]],
+                }
+            )
+    except Exception:
+        logger.exception("Europe PMC 抓取失败, query: %s", query_text[:100])
+        return []
+    return items
+
+
+def fetch_core_results(query_text: str, max_results: int) -> list[dict]:
+    api_key = os.getenv("CORE_API_KEY", "").strip()
+    if not api_key:
+        return []
+    items = []
+    try:
+        url = "https://api.core.ac.uk/v3/search/works"
+        headers = {**REQUEST_HEADERS, "Authorization": f"Bearer {api_key}"}
+        params = {"q": query_text, "limit": min(max_results, 20)}
+        data = requests.get(url, params=params, headers=headers, timeout=30).json()
+        for work in data.get("results", []):
+            abstract = (work.get("abstract") or work.get("title") or "").strip()
+            title = (work.get("title") or "").strip()
+            date_str = (work.get("publishedDate") or work.get("yearPublished") or "1970") [:10]
+            if len(date_str) == 4:
+                date_str += "-01-01"
+            doi = normalize_doi(work.get("doi") or "")
+            paper_url = work.get("downloadUrl") or work.get("sourceFulltextUrls", [""])[0] if work.get("sourceFulltextUrls") else ""
+            if not paper_url and doi:
+                paper_url = f"https://doi.org/{doi}"
+            if not paper_url:
+                paper_url = f"https://core.ac.uk/works/{work.get('id', '')}"
+            authors_list = work.get("authors") or []
+            items.append(
+                {
+                    "source": "core",
+                    "doi": doi,
+                    "title": title,
+                    "abstract": abstract,
+                    "url": paper_url,
+                    "published": datetime.fromisoformat(date_str + "T00:00:00+00:00"),
+                    "authors": [a.get("name", "") if isinstance(a, dict) else str(a) for a in authors_list][:20],
+                    "primary_category": "",
+                    "categories": [],
+                }
+            )
+    except Exception:
+        logger.exception("CORE 抓取失败, query: %s", query_text[:100])
         return []
     return items
 
@@ -681,6 +759,10 @@ def fetch_source_results(source_name: str, query_text: str, max_results: int) ->
         return fetch_crossref_results(query_text, max_results)
     if source_name == "semantic_scholar":
         return fetch_semantic_scholar_results(query_text, max_results)
+    if source_name == "europepmc":
+        return fetch_europepmc_results(query_text, max_results)
+    if source_name == "core":
+        return fetch_core_results(query_text, max_results)
     return []
 
 
@@ -720,14 +802,56 @@ def result_to_row(query_name: str, item: dict, analysis: dict) -> dict:
     }
 
 
-def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5) -> str:
+def _format_stats_diagnostic(stats: dict | None) -> list[str]:
+    if not stats:
+        return ["（无运行统计信息）"]
+    lines = [
+        "本次运行诊断：",
+        f"  - 总抓取：{stats.get('fetched', 0)} 篇",
+        f"  - 日期过旧被过滤：{stats.get('too_old', 0)} 篇",
+        f"  - 重复去除：{stats.get('duplicate', 0)} 篇",
+        f"  - 排除关键词命中：{stats.get('excluded', 0)} 篇",
+        f"  - 必含关键词未命中：{stats.get('must_have_filtered', 0)} 篇",
+        f"  - 缓存命中（已分析）：{stats.get('cache_hit', 0)} 篇",
+        f"  - 新分析：{stats.get('analyzed', 0)} 篇",
+        f"  - 分析失败：{stats.get('analysis_failed', 0)} 篇",
+        f"  - 低于相关性阈值：{stats.get('below_min_relevance', 0)} 篇",
+        f"  - 已报告/已展示：{stats.get('already_reported', 0)} 篇",
+    ]
+    source_details = stats.get("source_details", {})
+    if source_details:
+        lines.append("")
+        lines.append("各数据源状态：")
+        for key, detail in source_details.items():
+            err = detail.get("error", "")
+            status = f"错误: {err}" if err else f"获取 {detail.get('fetched', 0)} 篇"
+            lines.append(f"  - {key}: {status}")
+    lines.append("")
+    fetched = stats.get("fetched", 0)
+    if fetched == 0:
+        lines.append("可能原因：所有数据源均未返回结果，请检查网络连通性和 API 可用性。")
+    elif stats.get("too_old", 0) > fetched * 0.5:
+        lines.append("可能原因：大量论文因日期过旧被过滤，考虑增大 DAYS_BACK。")
+    elif stats.get("below_min_relevance", 0) > 0:
+        lines.append("可能原因：论文未达到相关性阈值，考虑降低 MIN_RELEVANCE_SCORE。")
+    elif stats.get("analysis_failed", 0) > 0:
+        lines.append("可能原因：AI 分析失败较多，请检查 OpenAI API key 和模型可用性。")
+    elif stats.get("excluded", 0) > fetched * 0.3:
+        lines.append("可能原因：大量论文被排除关键词过滤，检查 exclude_keywords 是否过于宽泛。")
+    elif stats.get("already_reported", 0) > 0:
+        lines.append("可能原因：符合条件的论文已在之前报告中展示过。")
+    return lines
+
+
+def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5, stats: dict | None = None) -> str:
     lines = []
     lines.append(f"arxiv_agent 文献简报｜{today_str}")
     lines.append("")
 
     if df.empty:
         lines.append("今天没有符合条件的新论文进入最终收录。")
-        lines.append("可检查抓取窗口、相关性阈值、数据源配置或 API 调用情况。")
+        lines.append("")
+        lines.extend(_format_stats_diagnostic(stats))
         return "\n".join(lines)
 
     lines.append(f"今日最终收录：{len(df)} 篇")
@@ -797,18 +921,14 @@ def send_email_via_brevo(runtime: dict, subject: str, body: str, attachments: li
         server.send_message(msg)
 
 
-def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n: int = 10):
+def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n: int = 10, stats: dict | None = None):
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(f"# 文献简报（{today_str}）\n\n")
 
         if df.empty:
-            f.write("今天没有符合条件的新论文进入最终收录。\n")
-            f.write("\n")
-            f.write("建议检查：\n")
-            f.write("- 抓取窗口是否过窄\n")
-            f.write("- 相关性阈值是否过高\n")
-            f.write("- 数据源是否返回结果\n")
-            f.write("- AI 分析是否成功\n")
+            f.write("今天没有符合条件的新论文进入最终收录。\n\n")
+            for line in _format_stats_diagnostic(stats):
+                f.write(f"{line}\n")
             return
 
         f.write("## 概览\n\n")
@@ -856,7 +976,7 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
 
 
 def main():
-    print("arxiv agent started")
+    logger.info("arxiv agent started")
 
     config = load_config("config.yaml")
     client, runtime = load_env()
@@ -901,16 +1021,30 @@ def main():
         "below_min_relevance": 0,
         "already_reported": 0,
         "kept": 0,
+        "source_details": {},
     }
 
     for query_name, query_text in queries.items():
-        print(f"正在抓取 query: {query_name}")
+        logger.info("正在抓取 query: %s", query_name)
 
         for source_name in sources:
+            source_key = f"{source_name}/{query_name}"
             effective_query = resolve_query_for_source(source_name, query_name, queries, generic_queries)
-            print(f"  来源: {source_name}")
-            print(f"  使用检索式: {effective_query[:160]}{'...' if len(effective_query) > 160 else ''}")
-            source_items = fetch_source_results(source_name, effective_query, max_results_per_query)
+            logger.info("  来源: %s", source_name)
+            logger.info("  使用检索式: %s", effective_query[:160])
+            try:
+                source_items = fetch_source_results(source_name, effective_query, max_results_per_query)
+            except Exception as e:
+                logger.exception("抓取 %s 失败", source_key)
+                stats["source_details"][source_key] = {"fetched": 0, "error": str(e)}
+                continue
+            stats["source_details"][source_key] = {"fetched": len(source_items), "error": ""}
+
+            # Rate limiting between API calls
+            if source_name == "semantic_scholar":
+                time.sleep(3)
+            elif source_name != "arxiv":
+                time.sleep(1.5)
 
             for item in source_items:
                 stats["fetched"] += 1
@@ -1005,6 +1139,9 @@ def main():
                 stats["kept"] += 1
                 today_new_rows.append(row)
 
+            # Batch commit per source-query instead of per paper
+            conn.commit()
+
     today_str = datetime.now().strftime("%Y-%m-%d")
     excel_path = os.path.join(output_dir, f"{output_prefix}_{today_str}.xlsx")
     md_path = os.path.join(output_dir, f"{output_prefix}_{today_str}.md")
@@ -1013,14 +1150,14 @@ def main():
     all_rows = list(today_new_rows)
     target_size = max(runtime.get("report_top_n", 10), runtime.get("email_top_n", 5))
     if len(all_rows) < target_size:
-        pending_df = load_pending_pool(conn, runtime.get("pending_pool_days", 7), target_size * 3)
-        if not pending_df.empty:
+        pending_pool = load_pending_pool(conn, runtime.get("pending_pool_days", 7), target_size - len(all_rows) + 10)
+        if pending_pool:
             existing_keys = {(r.get('doi') or '', r.get('url')) for r in all_rows}
-            for _, prow in pending_df.iterrows():
+            for prow in pending_pool:
                 key = (prow.get('doi') or '', prow.get('url'))
                 if key in existing_keys:
                     continue
-                all_rows.append(prow.to_dict())
+                all_rows.append(prow)
                 existing_keys.add(key)
                 if len(all_rows) >= target_size:
                     break
@@ -1031,7 +1168,7 @@ def main():
         df = df.sort_values(by=["相关性分数", "published_date"], ascending=[False, False])
         df.to_excel(excel_path, index=False)
 
-    write_markdown(md_path, df, today_str, runtime.get("report_top_n", 10))
+    write_markdown(md_path, df, today_str, runtime.get("report_top_n", 10), stats=stats)
 
     if not df.empty:
         mark_displayed(conn, df["url"].tolist(), df.get("doi", pd.Series(dtype=str)).fillna("").tolist())
@@ -1042,7 +1179,7 @@ def main():
     if runtime.get("email_enabled") and (not df.empty or runtime.get("empty_report_email", True)):
         try:
             email_subject = f"[arxiv_agent] 文献简报 {today_str}｜收录 {len(df)} 篇"
-            email_body = build_email_body(df, today_str, runtime.get("email_top_n", 5))
+            email_body = build_email_body(df, today_str, runtime.get("email_top_n", 5), stats=stats)
             send_email_via_brevo(
                 runtime=runtime,
                 subject=email_subject,
@@ -1051,17 +1188,17 @@ def main():
             )
             if not df.empty:
                 mark_reported(conn, df["url"].tolist(), df.get("doi", pd.Series(dtype=str)).fillna("").tolist())
-            print("邮件推送已发送。")
-        except Exception as e:
-            print(f"邮件推送失败：{e}")
+            logger.info("邮件推送已发送。")
+        except Exception:
+            logger.exception("邮件推送失败")
 
     if df.empty:
-        print("没有抓到符合条件的新论文。")
+        logger.info("没有抓到符合条件的新论文。")
     else:
-        print(f"已生成 Excel：{excel_path}")
-    print(f"已生成 Markdown：{md_path}")
-    print(f"已生成统计：{stats_path}")
-    print("运行统计：", stats)
+        logger.info("已生成 Excel：%s", excel_path)
+    logger.info("已生成 Markdown：%s", md_path)
+    logger.info("已生成统计：%s", stats_path)
+    logger.info("运行统计：%s", stats)
 
 
 if __name__ == "__main__":
