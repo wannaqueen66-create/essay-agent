@@ -1,0 +1,19 @@
+[Unit]
+Description=arxiv-agent daily paper fetcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/arxiv-agent
+ExecStart=/opt/arxiv-agent/.venv/bin/python arxiv_agent.py
+Environment=PYTHONUNBUFFERED=1
+MemoryMax=768M
+MemoryHigh=512M
+CPUQuota=80%
+TimeoutStartSec=600
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
