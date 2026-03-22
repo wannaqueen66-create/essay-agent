@@ -358,6 +358,7 @@ If you use the one-command installer, the script will ask you for:
 - `OPENAI_BASE_URL` (optional)
 - `OPENAI_MODEL`
 - after `API key + base URL` are filled, the script will try to fetch the available model list automatically and show candidates for easier selection
+- if a model list is found, you can input either the **model number** (such as `1`, `2`, `3`) or the full model name
 - whether email should be enabled
 - SMTP settings if enabled
 - `DAYS_BACK`

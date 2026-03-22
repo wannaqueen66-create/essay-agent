@@ -199,7 +199,29 @@ data = json.loads(raw)
 print(data['models'][0])
 PY
 )"
-        ask "模型名称（可直接粘贴，也可回车使用默认/首个模型）" "$FIRST_MODEL" OPENAI_MODEL
+        echo ""
+        echo "  你可以："
+        echo "  - 输入编号（如 1 / 2 / 3）直接选择上面的模型"
+        echo "  - 直接粘贴模型名"
+        echo "  - 直接回车使用默认模型：$FIRST_MODEL"
+        MODEL_SELECTION_RAW=""
+        ask "模型选择（编号或模型名）" "$FIRST_MODEL" MODEL_SELECTION_RAW
+        if [[ "$MODEL_SELECTION_RAW" =~ ^[0-9]+$ ]]; then
+            OPENAI_MODEL="$(MODEL_FETCH_OUTPUT_RAW="$MODEL_FETCH_OUTPUT" MODEL_INDEX="$MODEL_SELECTION_RAW" python3 - <<'PY'
+import json, os
+raw = os.environ.get('MODEL_FETCH_OUTPUT_RAW', '')
+idx = int(os.environ.get('MODEL_INDEX', '1'))
+data = json.loads(raw)
+models = data['models'][:15]
+if 1 <= idx <= len(models):
+    print(models[idx-1])
+else:
+    print(models[0])
+PY
+)"
+        else
+            OPENAI_MODEL="$MODEL_SELECTION_RAW"
+        fi
     else
         MODEL_ERROR="$(MODEL_FETCH_OUTPUT_RAW="$MODEL_FETCH_OUTPUT" python3 - <<'PY'
 import json, os

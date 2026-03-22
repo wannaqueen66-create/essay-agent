@@ -386,6 +386,7 @@ python arxiv_agent.py
 - `OPENAI_BASE_URL`
 - `OPENAI_MODEL`
 - 当你填完 API key 和 base URL 后，脚本会自动尝试拉取可用模型列表，并展示候选模型，方便你选择
+- 如果成功拉到模型列表，你既可以输入编号（如 `1`、`2`、`3`），也可以直接输入完整模型名
 - 是否启用邮件
 - SMTP 主机、端口、用户名、密码、发件人、收件人
 - `DAYS_BACK`
