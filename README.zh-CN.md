@@ -367,6 +367,7 @@ python arxiv_agent.py
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`
 - `OPENAI_MODEL`
+- 当你填完 API key 和 base URL 后，脚本会自动尝试拉取可用模型列表，并展示候选模型，方便你选择
 - 是否启用邮件
 - SMTP 主机、端口、用户名、密码、发件人、收件人
 - `DAYS_BACK`
@@ -383,6 +384,23 @@ python arxiv_agent.py
 ---
 
 ## 12. 配置文件说明
+
+### CORE API 注册流程
+
+如果你想启用 CORE 数据源，需要先申请一个 CORE API Key。
+
+申请入口：
+
+- <https://core.ac.uk/services/api>
+
+一般流程是：
+
+1. 打开 CORE API 页面；
+2. 注册或登录；
+3. 创建一个 API key；
+4. 把 key 填进 `.env` 里的 `CORE_API_KEY`。
+
+如果你暂时没有 CORE key，也没关系，项目仍然可以依赖其他数据源继续运行。
 
 ### 12.1 `.env` 运行时配置
 

@@ -347,6 +347,7 @@ If you use the one-command installer, the script will ask you for:
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL` (optional)
 - `OPENAI_MODEL`
+- after `API key + base URL` are filled, the script will try to fetch the available model list automatically and show candidates for easier selection
 - whether email should be enabled
 - SMTP settings if enabled
 - `DAYS_BACK`
@@ -381,6 +382,30 @@ This means you do **not** need to manually write the `.env` file during deployme
 ---
 
 ## 12. Configuration Reference / 配置说明
+
+### CORE API registration / CORE API 注册流程
+
+If you want to use the CORE source, you need a CORE API key.
+
+如果你想启用 CORE 数据源，需要先申请 CORE API Key。
+
+Typical process:
+
+1. visit <https://core.ac.uk/services/api>
+2. register or sign in
+3. create an API key
+4. copy the key into `.env` as `CORE_API_KEY`
+
+通常流程就是：
+
+1. 打开 <https://core.ac.uk/services/api>
+2. 注册或登录 CORE
+3. 创建 API key
+4. 把拿到的 key 填进 `.env` 里的 `CORE_API_KEY`
+
+If you do not have a CORE key yet, the project can still run with the other enabled sources.
+
+如果你暂时没有 CORE key，项目依然可以依靠其他数据源正常运行。
 
 ### 12.1 `.env` runtime parameters / `.env` 运行时参数
 

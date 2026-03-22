@@ -128,7 +128,89 @@ while [[ -z "$OPENAI_API_KEY" ]]; do
     ask "OpenAI API Key" "" OPENAI_API_KEY
 done
 ask "API Base URL（回车表示使用官方 OpenAI）" "" OPENAI_BASE_URL
-ask "模型名称" "gpt-4.1-mini" OPENAI_MODEL
+
+DEFAULT_MODEL="gpt-4.1-mini"
+OPENAI_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+OPENAI_BASE_URL="${OPENAI_BASE_URL%/}"
+OPENAI_MODEL="$DEFAULT_MODEL"
+
+info "尝试根据你填写的 API 参数拉取模型列表 ..."
+MODEL_FETCH_OUTPUT="$(DEPLOY_OPENAI_API_KEY="$OPENAI_API_KEY" DEPLOY_OPENAI_BASEURL="$OPENAI_BASE_URL" python3 - <<'PY'
+import json, os, urllib.request
+api_key = os.environ.get('DEPLOY_OPENAI_API_KEY', '').strip()
+base_url = os.environ.get('DEPLOY_OPENAI_BASEURL', '').strip().rstrip('/')
+if not api_key or not base_url:
+    print(json.dumps({"ok": False, "error": "missing api_key or base_url"}))
+    raise SystemExit(0)
+url = base_url + '/models'
+req = urllib.request.Request(url, headers={
+    'Authorization': f'Bearer {api_key}',
+    'Content-Type': 'application/json',
+    'User-Agent': 'essay-agent-deploy/1.0',
+})
+try:
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        data = json.loads(resp.read().decode('utf-8', errors='ignore'))
+    models = []
+    for item in data.get('data', []):
+        mid = item.get('id')
+        if isinstance(mid, str) and mid.strip():
+            models.append(mid.strip())
+    print(json.dumps({"ok": True, "models": models[:50]}))
+except Exception as e:
+    print(json.dumps({"ok": False, "error": str(e)}))
+PY
+)"
+
+if [[ -n "$MODEL_FETCH_OUTPUT" ]]; then
+    MODEL_STATUS="$(MODEL_FETCH_OUTPUT_RAW="$MODEL_FETCH_OUTPUT" python3 - <<'PY'
+import json, os
+raw = os.environ.get('MODEL_FETCH_OUTPUT_RAW', '')
+try:
+    data = json.loads(raw)
+except Exception:
+    data = {"ok": False, "error": "invalid json"}
+print('OK' if data.get('ok') and data.get('models') else 'FAIL')
+PY
+)"
+    if [[ "$MODEL_STATUS" == "OK" ]]; then
+        echo ""
+        echo "  检测到以下模型（前 15 个）："
+        MODEL_LINES="$(MODEL_FETCH_OUTPUT_RAW="$MODEL_FETCH_OUTPUT" python3 - <<'PY'
+import json, os
+raw = os.environ.get('MODEL_FETCH_OUTPUT_RAW', '')
+data = json.loads(raw)
+for i, m in enumerate(data['models'][:15], start=1):
+    print(f'{i}. {m}')
+PY
+)"
+        echo "$MODEL_LINES"
+        FIRST_MODEL="$(MODEL_FETCH_OUTPUT_RAW="$MODEL_FETCH_OUTPUT" python3 - <<'PY'
+import json, os
+raw = os.environ.get('MODEL_FETCH_OUTPUT_RAW', '')
+data = json.loads(raw)
+print(data['models'][0])
+PY
+)"
+        ask "模型名称（可直接粘贴，也可回车使用默认/首个模型）" "$FIRST_MODEL" OPENAI_MODEL
+    else
+        MODEL_ERROR="$(MODEL_FETCH_OUTPUT_RAW="$MODEL_FETCH_OUTPUT" python3 - <<'PY'
+import json, os
+raw = os.environ.get('MODEL_FETCH_OUTPUT_RAW', '')
+try:
+    data = json.loads(raw)
+    print(data.get('error', 'unknown error'))
+except Exception:
+    print('unknown error')
+PY
+)"
+        warn "自动获取模型列表失败：$MODEL_ERROR"
+        ask "模型名称" "$DEFAULT_MODEL" OPENAI_MODEL
+    fi
+else
+    warn "模型列表获取结果为空，改为手动输入模型名称。"
+    ask "模型名称" "$DEFAULT_MODEL" OPENAI_MODEL
+fi
 
 echo ""
 echo "  邮件推送是可选的；如果现在不配，后面也可以手动修改 .env。"
@@ -243,6 +325,8 @@ ENVEOF
 mkdir -p "$INSTALL_DIR/output"
 chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
 chmod 600 "$ENV_FILE"
+chmod 644 "$INSTALL_DIR/config.yaml" "$INSTALL_DIR/arxiv_agent.py" "$INSTALL_DIR/requirements.txt" "$INSTALL_DIR/README.md" "$INSTALL_DIR/README.zh-CN.md" 2>/dev/null || true
+chmod 755 "$INSTALL_DIR" "$INSTALL_DIR/output" 2>/dev/null || true
 
 info "安装 systemd 服务 ..."
 cp "$INSTALL_DIR/deploy/arxiv-agent.service" /etc/systemd/system/
@@ -268,7 +352,12 @@ fi
 echo ""
 if confirm "部署完成！是否立即试运行一次？（约 2-5 分钟）" "y"; then
     info "开始试运行 ..."
-    if sudo -u "$SERVICE_USER" "$INSTALL_DIR/.venv/bin/python" "$INSTALL_DIR/arxiv_agent.py"; then
+    if sudo -u "$SERVICE_USER" test -r "$INSTALL_DIR/config.yaml"; then
+        info "配置文件可读性检查通过"
+    else
+        warn "配置文件当前对服务用户不可读：$INSTALL_DIR/config.yaml"
+    fi
+    if sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$INSTALL_DIR/.venv/bin/python' arxiv_agent.py"; then
         info "试运行成功！"
         echo ""
         echo "  输出文件："
