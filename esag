@@ -10,8 +10,6 @@ CONFIG_FILE="$INSTALL_DIR/config.yaml"
 VENV_PY="$INSTALL_DIR/.venv/bin/python"
 DEPLOY_SCRIPT="$INSTALL_DIR/deploy.sh"
 OUTPUT_DIR="$INSTALL_DIR/output"
-REPO_HTTPS_URL="https://github.com/wannaqueen66-create/essay-agent.git"
-DEFAULT_BRANCH="main"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -261,12 +259,15 @@ run_installer() {
     bash "$DEPLOY_SCRIPT"
     return
   fi
-  local tmp_src
-  tmp_src="$(mktemp -d /tmp/essay-agent-bootstrap.XXXXXX)"
-  trap 'rm -rf "$tmp_src"' RETURN
-  info "未检测到本地部署脚本，正在临时拉取仓库 ..."
-  git clone --depth=1 --branch "$DEFAULT_BRANCH" "$REPO_HTTPS_URL" "$tmp_src" >/dev/null 2>&1 || error "无法拉取仓库：$REPO_HTTPS_URL"
-  bash "$tmp_src/deploy.sh"
+  local tmp_script
+  tmp_script="$(mktemp /tmp/essay-agent-deploy.XXXXXX.sh)"
+  trap 'rm -f "$tmp_script"' RETURN
+  info "未检测到本地部署脚本，正在临时下载 deploy.sh ..."
+  if ! curl -fsSL "https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh" -o "$tmp_script"; then
+    error "无法下载 deploy.sh，请检查当前服务器是否能访问 raw.githubusercontent.com"
+  fi
+  chmod +x "$tmp_script"
+  bash "$tmp_script"
 }
 
 run_now() {
