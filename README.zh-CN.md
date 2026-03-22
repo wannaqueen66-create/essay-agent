@@ -172,7 +172,7 @@
 你可以设置最小相关性分数，例如：
 
 ```env
-MIN_RELEVANCE_SCORE=70
+MIN_RELEVANCE_SCORE=60
 ```
 
 只有达到阈值的论文才会进入正式结果。
@@ -605,7 +605,7 @@ journalctl -u arxiv-agent -f
 OPENAI_MODEL=gpt-4.1-mini
 DAYS_BACK=1
 MAX_RESULTS_PER_QUERY=5
-MIN_RELEVANCE_SCORE=70
+MIN_RELEVANCE_SCORE=60
 FORCE_REFRESH=false
 EMAIL_ENABLED=false
 ```

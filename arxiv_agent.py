@@ -58,7 +58,7 @@ def load_env() -> tuple[OpenAI, dict]:
         "openai_model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
         "days_back": int(os.getenv("DAYS_BACK", "2")),
         "max_results_per_query": int(os.getenv("MAX_RESULTS_PER_QUERY", "30")),
-        "min_relevance_score": int(os.getenv("MIN_RELEVANCE_SCORE", "70")),
+        "min_relevance_score": int(os.getenv("MIN_RELEVANCE_SCORE", "60")),
         "force_refresh": parse_bool(os.getenv("FORCE_REFRESH"), False),
         "email_enabled": parse_bool(os.getenv("EMAIL_ENABLED"), False),
         "email_smtp_host": os.getenv("EMAIL_SMTP_HOST", "smtp-relay.brevo.com"),
