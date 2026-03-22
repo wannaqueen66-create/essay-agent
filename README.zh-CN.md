@@ -245,7 +245,8 @@ essay-agent/
 ├── config.yaml                 # 检索式、数据源、目标期刊等配置
 ├── requirements.txt            # Python 依赖
 ├── .env.example                # 环境变量模板
-├── deploy.sh                   # 交互式一键部署脚本
+├── deploy.sh                   # 首次安装 / 部署脚本
+├── esag                        # 交互式运维管理脚本
 ├── deploy/
 │   ├── arxiv-agent.service     # systemd 服务单元
 │   └── arxiv-agent.timer       # systemd 定时器
@@ -270,7 +271,13 @@ output/
 
 ## 9. 一条命令部署到 VPS
 
-如果你的 VPS 已经有 `curl` 和 `sudo`，推荐直接使用下面这条命令：
+如果你的 VPS 已经有 `curl` 和 `sudo`，推荐直接使用下面这条命令。
+
+这条命令用于：
+
+- **首次安装**
+- **首次部署**
+- **首次交互式配置**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
@@ -485,6 +492,25 @@ journalctl -u arxiv-agent -f
 ---
 
 ## 14. 更新与升级
+
+首次安装完成后，推荐的日常运维入口是：
+
+```bash
+sudo esag
+```
+
+通过 `esag`，你可以交互式完成：
+
+- 手动运行主程序
+- 修改 `.env`
+- 修改 `config.yaml`
+- 查看日志
+- 查看数据库状态
+- 查看待展示池
+- 测试邮箱
+- 重新执行部署脚本做升级/重配
+- 卸载项目
+
 
 如果你已经部署过一次，后续想升级，推荐做法也很简单：
 

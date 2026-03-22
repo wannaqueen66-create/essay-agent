@@ -122,6 +122,9 @@ fi
 if [[ ! -f "$TMP_SRC/arxiv_agent.py" || ! -f "$TMP_SRC/config.yaml" || ! -f "$TMP_SRC/requirements.txt" ]]; then
     error "拉取到的仓库内容不完整，缺少核心文件。"
 fi
+if [[ ! -f "$TMP_SRC/esag" ]]; then
+    error "拉取到的仓库内容不完整，缺少管理脚本 esag。"
+fi
 
 step "3/5 配置 OpenAI / 邮件 / 运行参数"
 echo ""
@@ -375,6 +378,10 @@ info "安装 systemd 服务 ..."
 cp "$INSTALL_DIR/deploy/arxiv-agent.service" /etc/systemd/system/
 cp "$INSTALL_DIR/deploy/arxiv-agent.timer" /etc/systemd/system/
 
+info "安装管理命令 esag ..."
+cp "$INSTALL_DIR/esag" /usr/local/bin/esag
+chmod 755 /usr/local/bin/esag
+
 if ! grep -q '^User=' /etc/systemd/system/arxiv-agent.service; then
     sed -i "/^\[Service\]/a User=$SERVICE_USER" /etc/systemd/system/arxiv-agent.service
 fi
@@ -418,12 +425,14 @@ echo ""
 echo "  安装目录：$INSTALL_DIR"
 echo "  配置文件：$INSTALL_DIR/.env"
 echo "  定时任务：每天 $RUN_TIME 自动运行"
+echo "  管理命令：esag"
 echo ""
-echo "  常用命令："
+echo "  推荐后续操作："
+echo "    打开管理面板：sudo esag"
+echo ""
+echo "  仍可手动使用的命令："
 echo "    手动运行：  sudo -u $SERVICE_USER $INSTALL_DIR/.venv/bin/python $INSTALL_DIR/arxiv_agent.py"
 echo "    查看日志：  journalctl -u arxiv-agent -f"
-echo "    修改配置：  sudo nano $INSTALL_DIR/.env"
-echo "    修改检索：  sudo nano $INSTALL_DIR/config.yaml"
 echo "    定时器状态：systemctl status arxiv-agent.timer"
 echo "    上次运行：  systemctl status arxiv-agent.service"
 echo ""

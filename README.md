@@ -204,7 +204,8 @@ essay-agent/
 ├── config.yaml                 # Search queries, source list, journal list / 配置文件
 ├── requirements.txt            # Python dependencies / Python 依赖
 ├── .env.example                # Environment variable template / 环境变量模板
-├── deploy.sh                   # Interactive deployment script / 交互式部署脚本
+├── deploy.sh                   # Interactive installer / 安装部署脚本
+├── esag                        # Interactive operations panel / 交互式运维管理脚本
 ├── deploy/
 │   ├── arxiv-agent.service     # systemd service unit
 │   └── arxiv-agent.timer       # systemd timer unit
@@ -234,6 +235,10 @@ If your VPS already has `curl` and `sudo`, you can deploy the project with **one
 如果你的 VPS 上已经有 `curl` 和 `sudo`，你可以直接用**一条 bash 命令**部署这个项目。
 
 ### Recommended one-command install / 推荐一键安装命令
+
+This script is for **first-time installation and deployment**.
+
+这个脚本用于**首次安装和部署**。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
@@ -482,6 +487,43 @@ journalctl -u arxiv-agent -f
 ---
 
 ## 14. Update and Upgrade / 更新与升级
+
+After the first installation, the recommended daily operations entry is:
+
+```bash
+sudo esag
+```
+
+首次安装完成后，推荐的日常运维入口就是：
+
+```bash
+sudo esag
+```
+
+With `esag`, you can interactively:
+
+- run the program manually,
+- edit `.env`,
+- edit `config.yaml`,
+- inspect logs,
+- inspect database status,
+- inspect pending pool,
+- test email,
+- re-run deploy for upgrades,
+- uninstall the project.
+
+通过 `esag`，你可以交互式完成：
+
+- 手动运行主程序
+- 修改 `.env`
+- 修改 `config.yaml`
+- 查看日志
+- 查看数据库状态
+- 查看待展示池
+- 测试邮箱
+- 重新部署升级
+- 卸载项目
+
 
 If you already deployed the project once and want to update it later, the recommended approach is simple:
 
