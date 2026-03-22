@@ -439,9 +439,54 @@ edit_source_settings() {
   fi
 }
 
+upgrade_program_keep_config() {
+  require_install
+  step "升级程序（保留当前配置）"
+  local tmp_src backup_dir
+  tmp_src="$(mktemp -d /tmp/essay-agent-upgrade.XXXXXX)"
+  backup_dir="$(mktemp -d /tmp/essay-agent-backup.XXXXXX)"
+  trap 'rm -rf "$tmp_src" "$backup_dir"' RETURN
+
+  info "备份当前关键文件 ..."
+  cp -f "$ENV_FILE" "$backup_dir/.env"
+  cp -f "$CONFIG_FILE" "$backup_dir/config.yaml"
+  if [[ -f "$INSTALL_DIR/papers.db" ]]; then
+    cp -f "$INSTALL_DIR/papers.db" "$backup_dir/papers.db"
+  fi
+
+  info "拉取最新代码 ..."
+  if ! git clone --depth=1 --branch main "https://github.com/wannaqueen66-create/essay-agent.git" "$tmp_src" >/dev/null 2>&1; then
+    error "升级失败：无法拉取最新仓库代码"
+  fi
+
+  info "同步程序文件 ..."
+  cp -a "$tmp_src"/. "$INSTALL_DIR"/
+
+  info "恢复原配置 ..."
+  cp -f "$backup_dir/.env" "$ENV_FILE"
+  cp -f "$backup_dir/config.yaml" "$CONFIG_FILE"
+  if [[ -f "$backup_dir/papers.db" ]]; then
+    cp -f "$backup_dir/papers.db" "$INSTALL_DIR/papers.db"
+  fi
+
+  info "刷新依赖与服务文件 ..."
+  "$INSTALL_DIR/.venv/bin/pip" install -q --upgrade pip >/dev/null 2>&1 || true
+  "$INSTALL_DIR/.venv/bin/pip" install -q -r "$INSTALL_DIR/requirements.txt" >/dev/null 2>&1 || true
+  cp "$INSTALL_DIR/deploy/essay-agent.service" /etc/systemd/system/
+  cp "$INSTALL_DIR/deploy/essay-agent.timer" /etc/systemd/system/
+  cp "$INSTALL_DIR/esag" /usr/local/bin/esag
+  chmod 755 /usr/local/bin/esag
+  chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
+  chmod 600 "$ENV_FILE"
+  systemctl daemon-reload
+  systemctl restart "$TIMER_NAME" >/dev/null 2>&1 || true
+
+  info "升级完成：已保留现有 .env / config.yaml / papers.db"
+}
+
 rerun_deploy() {
   require_install
-  step "重新执行部署脚本（升级 / 重配）"
+  step "全量重配（重新执行部署脚本）"
   bash "$DEPLOY_SCRIPT"
 }
 
@@ -569,17 +614,19 @@ maintenance_menu() {
     echo "[维护菜单]"
     cat <<'EOF'
 [1] 立即运行一次
-[2] 重新执行部署脚本（升级 / 重配）
-[3] 卸载 essay-agent
-[4] 返回主菜单
+[2] 升级程序（保留当前配置）
+[3] 全量重配（重新执行部署脚本）
+[4] 卸载 essay-agent
+[5] 返回主菜单
 EOF
     echo ""
     read -r -p "请选择操作: " choice < /dev/tty || true
     case "$choice" in
       1) run_now; pause ;;
-      2) rerun_deploy; pause ;;
-      3) uninstall_agent ;;
-      4) return ;;
+      2) upgrade_program_keep_config; pause ;;
+      3) rerun_deploy; pause ;;
+      4) uninstall_agent ;;
+      5) return ;;
       *) warn "无效选择"; pause ;;
     esac
   done
@@ -629,8 +676,9 @@ top_level_menu() {
     cat <<'EOF'
 [1] 安装 / 重装 essay-agent
 [2] 进入 esag 运维控制台
-[3] 升级 / 重配
-[4] 卸载 essay-agent
+[3] 升级程序（保留当前配置）
+[4] 全量重配
+[5] 卸载 essay-agent
 [0] 退出
 EOF
     echo ""
@@ -638,8 +686,9 @@ EOF
     case "$choice" in
       1) run_installer; pause ;;
       2) if is_installed; then operations_console; else warn "尚未安装，请先执行安装"; pause; fi ;;
-      3) if is_installed; then rerun_deploy; pause; else warn "尚未安装，请先执行安装"; pause; fi ;;
-      4) if is_installed; then uninstall_agent; else warn "尚未安装，无需卸载"; pause; fi ;;
+      3) if is_installed; then upgrade_program_keep_config; pause; else warn "尚未安装，请先执行安装"; pause; fi ;;
+      4) if is_installed; then rerun_deploy; pause; else warn "尚未安装，请先执行安装"; pause; fi ;;
+      5) if is_installed; then uninstall_agent; else warn "尚未安装，无需卸载"; pause; fi ;;
       0) exit 0 ;;
       *) warn "无效选择"; pause ;;
     esac

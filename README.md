@@ -256,7 +256,8 @@ After launch, `esag` will show a top-level menu such as:
 
 - install / reinstall
 - enter operations console
-- upgrade / reconfigure
+- upgrade program (keep current config)
+- full reconfigure
 - uninstall
 
 也就是说，首次安装不再强调“用户直接操作 deploy.sh”，而是：

@@ -289,7 +289,8 @@ curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/mai
 - 然后在顶层菜单里选择：
   - 安装 / 重装
   - 运维控制台
-  - 升级 / 重配
+  - 升级程序（保留当前配置）
+  - 全量重配
   - 卸载
 
 ### 这条命令符合什么预期
