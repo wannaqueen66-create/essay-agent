@@ -234,15 +234,35 @@ If your VPS already has `curl` and `sudo`, you can deploy the project with **one
 
 如果你的 VPS 上已经有 `curl` 和 `sudo`，你可以直接用**一条 bash 命令**部署这个项目。
 
-### Recommended one-command install / 推荐一键安装命令
+### Recommended unified entry / 推荐统一入口
 
-This script is for **first-time installation and deployment**.
+The intended user-facing entry is now the `esag` console itself.
 
-这个脚本用于**首次安装和部署**。
+现在面向用户的推荐统一入口已经改成了 `esag` 控制台本身。
+
+For first-time bootstrap on a fresh VPS, use:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | bash
 ```
+
+If you are not root, use:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | sudo bash
+```
+
+After launch, `esag` will show a top-level menu such as:
+
+- install / reinstall
+- enter operations console
+- upgrade / reconfigure
+- uninstall
+
+也就是说，首次安装不再强调“用户直接操作 deploy.sh”，而是：
+
+- 进入 `esag`
+- 由 `esag` 的顶层菜单来调度安装、运维、升级、卸载
 
 ### What it does / 这条命令会做什么
 

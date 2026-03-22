@@ -271,17 +271,26 @@ output/
 
 ## 9. 一条命令部署到 VPS
 
-如果你的 VPS 已经有 `curl` 和 `sudo`，推荐直接使用下面这条命令。
-
-这条命令用于：
-
-- **首次安装**
-- **首次部署**
-- **首次交互式配置**
+如果你的 VPS 已经有 `curl`，推荐直接使用统一入口脚本：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | bash
 ```
+
+如果你不是 root，则使用：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | sudo bash
+```
+
+也就是说，现在推荐的用户入口不再是直接操作 `deploy.sh`，而是：
+
+- 先进 `esag`
+- 然后在顶层菜单里选择：
+  - 安装 / 重装
+  - 运维控制台
+  - 升级 / 重配
+  - 卸载
 
 ### 这条命令符合什么预期
 

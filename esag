@@ -10,6 +10,8 @@ CONFIG_FILE="$INSTALL_DIR/config.yaml"
 VENV_PY="$INSTALL_DIR/.venv/bin/python"
 DEPLOY_SCRIPT="$INSTALL_DIR/deploy.sh"
 OUTPUT_DIR="$INSTALL_DIR/output"
+REPO_HTTPS_URL="https://github.com/wannaqueen66-create/essay-agent.git"
+DEFAULT_BRANCH="main"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -29,9 +31,13 @@ require_root() {
   fi
 }
 
+is_installed() {
+  [[ -d "$INSTALL_DIR" && -f "$ENV_FILE" && -f "$DEPLOY_SCRIPT" ]]
+}
+
 require_install() {
-  if [[ ! -d "$INSTALL_DIR" || ! -f "$ENV_FILE" ]]; then
-    error "未检测到 essay-agent 安装目录：$INSTALL_DIR"
+  if ! is_installed; then
+    error "未检测到 essay-agent 安装目录：$INSTALL_DIR，请先执行安装。"
   fi
 }
 
@@ -54,6 +60,70 @@ write_env_value() {
   else
     echo "${key}=${value}" >> "$ENV_FILE"
   fi
+}
+
+pause() {
+  echo ""
+  read -r -p "按回车继续..." _ < /dev/tty || true
+}
+
+ask() {
+  local prompt="$1"
+  local default="$2"
+  local var_name="$3"
+  local input=""
+  if [[ -n "$default" ]]; then
+    read -r -p "$prompt [$default]: " input < /dev/tty || true
+    eval "$var_name=\"${input:-$default}\""
+  else
+    read -r -p "$prompt: " input < /dev/tty || true
+    eval "$var_name=\"${input:-}\""
+  fi
+}
+
+ask_secret() {
+  local prompt="$1"
+  local var_name="$2"
+  local input=""
+  read -r -s -p "$prompt: " input < /dev/tty || true
+  echo "" > /dev/tty
+  eval "$var_name=\"${input:-}\""
+}
+
+confirm() {
+  local prompt="$1"
+  local default="${2:-y}"
+  local yn=""
+  if [[ "$default" == "y" ]]; then
+    read -r -p "$prompt [Y/n]: " yn < /dev/tty || true
+    yn="${yn:-y}"
+  else
+    read -r -p "$prompt [y/N]: " yn < /dev/tty || true
+    yn="${yn:-n}"
+  fi
+  [[ "$yn" =~ ^[Yy]$ ]]
+}
+
+service_status() { systemctl is-active "$SERVICE_NAME" 2>/dev/null || true; }
+timer_status() { systemctl is-active "$TIMER_NAME" 2>/dev/null || true; }
+
+current_timer_time() {
+  systemctl cat "$TIMER_NAME" 2>/dev/null | awk -F'=' '/OnCalendar=/{print $2}' | tail -n1 | sed 's/.* //; s/:00$//' || true
+}
+
+last_run_time() {
+  systemctl show "$SERVICE_NAME" -p ExecMainStartTimestamp --value 2>/dev/null || true
+}
+
+last_run_result() {
+  systemctl show "$SERVICE_NAME" -p Result --value 2>/dev/null || true
+}
+
+recent_outputs() {
+  if [[ ! -d "$OUTPUT_DIR" ]]; then
+    return 0
+  fi
+  find "$OUTPUT_DIR" -maxdepth 1 -type f -printf '%TY-%Tm-%Td %TH:%TM %f\n' 2>/dev/null | sort -r | head -n 5 || true
 }
 
 read_sources() {
@@ -100,81 +170,18 @@ cfg_path.write_text('\\n'.join(out) + '\\n', encoding='utf-8')
 PY
 }
 
-pause() {
-  echo ""
-  read -r -p "按回车继续..." _ < /dev/tty || true
-}
-
-ask() {
-  local prompt="$1"
-  local default="$2"
-  local var_name="$3"
-  local input=""
-  if [[ -n "$default" ]]; then
-    read -r -p "$prompt [$default]: " input < /dev/tty || true
-    eval "$var_name=\"${input:-$default}\""
-  else
-    read -r -p "$prompt: " input < /dev/tty || true
-    eval "$var_name=\"${input:-}\""
-  fi
-}
-
-ask_secret() {
-  local prompt="$1"
-  local var_name="$2"
-  local input=""
-  read -r -s -p "$prompt: " input < /dev/tty || true
-  echo "" > /dev/tty
-  eval "$var_name=\"${input:-}\""
-}
-
-confirm() {
-  local prompt="$1"
-  local default="${2:-y}"
-  local yn=""
-  if [[ "$default" == "y" ]]; then
-    read -r -p "$prompt [Y/n]: " yn < /dev/tty || true
-    yn="${yn:-y}"
-  else
-    read -r -p "$prompt [y/N]: " yn < /dev/tty || true
-    yn="${yn:-n}"
-  fi
-  [[ "$yn" =~ ^[Yy]$ ]]
-}
-
-service_status() {
-  systemctl is-active "$SERVICE_NAME" 2>/dev/null || true
-}
-
-timer_status() {
-  systemctl is-active "$TIMER_NAME" 2>/dev/null || true
-}
-
-current_timer_time() {
-  systemctl cat "$TIMER_NAME" 2>/dev/null | awk -F'=' '/OnCalendar=/{print $2}' | tail -n1 | sed 's/.* //; s/:00$//' || true
-}
-
-last_run_time() {
-  systemctl show "$SERVICE_NAME" -p ExecMainStartTimestamp --value 2>/dev/null || true
-}
-
-last_run_result() {
-  systemctl show "$SERVICE_NAME" -p Result --value 2>/dev/null || true
-}
-
-recent_outputs() {
-  if [[ ! -d "$OUTPUT_DIR" ]]; then
-    return 0
-  fi
-  find "$OUTPUT_DIR" -maxdepth 1 -type f -printf '%TY-%Tm-%Td %TH:%TM %f\n' 2>/dev/null | sort -r | head -n 5 || true
-}
-
 show_header() {
   clear || true
   echo -e "${BOLD}==========================================${NC}"
   echo -e "${BOLD} essay-agent 终端控制台 (esag)${NC}"
   echo -e "${BOLD}==========================================${NC}"
-  echo "安装目录: $INSTALL_DIR"
+  if is_installed; then
+    echo "安装状态: 已安装"
+    echo "安装目录: $INSTALL_DIR"
+  else
+    echo "安装状态: 未安装"
+    echo "安装目录: $INSTALL_DIR"
+  fi
   echo ""
 }
 
@@ -240,6 +247,21 @@ show_dashboard() {
   echo ""
 }
 
+run_installer() {
+  require_root
+  step "安装 / 重装 essay-agent"
+  if [[ -f "$DEPLOY_SCRIPT" ]]; then
+    bash "$DEPLOY_SCRIPT"
+    return
+  fi
+  local tmp_src
+  tmp_src="$(mktemp -d /tmp/essay-agent-bootstrap.XXXXXX)"
+  trap 'rm -rf "$tmp_src"' RETURN
+  info "未检测到本地部署脚本，正在临时拉取仓库 ..."
+  git clone --depth=1 --branch "$DEFAULT_BRANCH" "$REPO_HTTPS_URL" "$tmp_src" >/dev/null 2>&1 || error "无法拉取仓库：$REPO_HTTPS_URL"
+  bash "$tmp_src/deploy.sh"
+}
+
 run_now() {
   require_install
   step "立即执行一次主程序"
@@ -276,15 +298,8 @@ test_email() {
   sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' test_email.py"
 }
 
-open_env_editor() {
-  require_install
-  ${EDITOR:-nano} "$ENV_FILE"
-}
-
-open_config_editor() {
-  require_install
-  ${EDITOR:-nano} "$CONFIG_FILE"
-}
+open_env_editor() { require_install; ${EDITOR:-nano} "$ENV_FILE"; }
+open_config_editor() { require_install; ${EDITOR:-nano} "$CONFIG_FILE"; }
 
 apply_timer_time() {
   local run_time="$1"
@@ -340,17 +355,9 @@ edit_email_settings() {
   tls="$(read_env_value EMAIL_USE_TLS)"
 
   if [[ "$enabled" == "true" ]]; then
-    if confirm "是否继续启用邮件推送？" "y"; then
-      enabled="true"
-    else
-      enabled="false"
-    fi
+    if confirm "是否继续启用邮件推送？" "y"; then enabled="true"; else enabled="false"; fi
   else
-    if confirm "是否启用邮件推送？" "n"; then
-      enabled="true"
-    else
-      enabled="false"
-    fi
+    if confirm "是否启用邮件推送？" "n"; then enabled="true"; else enabled="false"; fi
   fi
 
   if [[ "$enabled" == "true" ]]; then
@@ -361,14 +368,11 @@ edit_email_settings() {
     ask "发件人邮箱" "$from" from
     ask "收件人邮箱（多个用英文逗号分隔）" "$to" to
     ask "是否启用 TLS（true/false）" "${tls:-true}" tls
-
     write_env_value EMAIL_ENABLED "$enabled"
     write_env_value EMAIL_SMTP_HOST "$host"
     write_env_value EMAIL_SMTP_PORT "$port"
     write_env_value EMAIL_USERNAME "$username"
-    if [[ -n "$password" ]]; then
-      write_env_value EMAIL_PASSWORD "$password"
-    fi
+    if [[ -n "$password" ]]; then write_env_value EMAIL_PASSWORD "$password"; fi
     write_env_value EMAIL_FROM "$from"
     write_env_value EMAIL_TO "$to"
     write_env_value EMAIL_USE_TLS "$tls"
@@ -381,7 +385,7 @@ edit_email_settings() {
 edit_source_settings() {
   require_install
   step "数据源与 CORE 配置"
-  local current_core available_sources current_sources selected_sources source
+  local current_core available_sources current_sources selected_sources source existing
   current_core="$(read_env_value CORE_API_KEY)"
   available_sources=(arxiv openalex crossref semantic_scholar europepmc core)
   mapfile -t current_sources < <(read_sources)
@@ -389,9 +393,7 @@ edit_source_settings() {
 
   echo "当前启用的数据源："
   if [[ ${#current_sources[@]} -gt 0 ]]; then
-    for source in "${current_sources[@]}"; do
-      echo "  - $source"
-    done
+    for source in "${current_sources[@]}"; do echo "  - $source"; done
   else
     echo "  （未检测到）"
   fi
@@ -400,10 +402,7 @@ edit_source_settings() {
   for source in "${available_sources[@]}"; do
     local default_choice="n"
     for existing in "${current_sources[@]:-}"; do
-      if [[ "$existing" == "$source" ]]; then
-        default_choice="y"
-        break
-      fi
+      if [[ "$existing" == "$source" ]]; then default_choice="y"; break; fi
     done
     if confirm "启用数据源 $source ?" "$default_choice"; then
       selected_sources+=("$source")
@@ -418,11 +417,7 @@ edit_source_settings() {
   fi
 
   echo ""
-  if [[ -n "$current_core" ]]; then
-    echo "当前 CORE API Key：已配置"
-  else
-    echo "当前 CORE API Key：未配置"
-  fi
+  if [[ -n "$current_core" ]]; then echo "当前 CORE API Key：已配置"; else echo "当前 CORE API Key：未配置"; fi
   if confirm "是否配置 / 更新 CORE API Key？" "n"; then
     ask_secret "CORE API Key（留空可清空）" new_core
     write_env_value CORE_API_KEY "$new_core"
@@ -453,20 +448,14 @@ uninstall_agent() {
   echo "- 删除服务用户 $SERVICE_USER（如果存在）"
   echo ""
   read -r -p "确认卸载？请输入 yes 继续: " ans < /dev/tty || true
-  if [[ "$ans" != "yes" ]]; then
-    warn "已取消卸载"
-    return
-  fi
-
+  if [[ "$ans" != "yes" ]]; then warn "已取消卸载"; return; fi
   systemctl disable --now "$TIMER_NAME" >/dev/null 2>&1 || true
   systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || true
   rm -f "/etc/systemd/system/arxiv-agent.service" "/etc/systemd/system/arxiv-agent.timer"
   systemctl daemon-reload || true
   rm -f /usr/local/bin/esag
   rm -rf "$INSTALL_DIR"
-  if id "$SERVICE_USER" >/dev/null 2>&1; then
-    userdel "$SERVICE_USER" >/dev/null 2>&1 || true
-  fi
+  if id "$SERVICE_USER" >/dev/null 2>&1; then userdel "$SERVICE_USER" >/dev/null 2>&1 || true; fi
   info "essay-agent 已卸载"
   exit 0
 }
@@ -524,15 +513,11 @@ sources_menu() {
   while true; do
     show_header
     echo "[数据源与 CORE 菜单]"
-    if [[ -n "$(read_env_value CORE_API_KEY)" ]]; then
-      echo "  CORE API: 已配置"
-    else
-      echo "  CORE API: 未配置"
-    fi
+    if [[ -n "$(read_env_value CORE_API_KEY)" ]]; then echo "  CORE API: 已配置"; else echo "  CORE API: 未配置"; fi
     echo ""
     cat <<'EOF'
-[1] 配置 / 更新 CORE API
-[2] 编辑 config.yaml
+[1] 交互式开关常用数据源 + CORE
+[2] 编辑 config.yaml（目标期刊 / 高级源配置）
 [3] 查看待展示池
 [4] 返回主菜单
 EOF
@@ -592,8 +577,8 @@ EOF
   done
 }
 
-menu_loop() {
-  require_root
+operations_console() {
+  require_install
   while true; do
     show_header
     show_dashboard
@@ -604,7 +589,7 @@ menu_loop() {
 [4] 数据源与 CORE
 [5] 日志与诊断
 [6] 维护操作（运行 / 升级 / 卸载）
-[0] 退出
+[0] 返回上一级
 EOF
     echo ""
     read -r -p "请选择操作: " choice < /dev/tty || true
@@ -615,10 +600,42 @@ EOF
       4) sources_menu ;;
       5) logs_menu ;;
       6) maintenance_menu ;;
+      0) return ;;
+      *) warn "无效选择"; pause ;;
+    esac
+  done
+}
+
+top_level_menu() {
+  require_root
+  while true; do
+    show_header
+    if is_installed; then
+      echo "[总入口菜单]"
+      echo "  当前状态：已安装，可直接进入运维控制台"
+    else
+      echo "[总入口菜单]"
+      echo "  当前状态：未安装，请先执行安装"
+    fi
+    echo ""
+    cat <<'EOF'
+[1] 安装 / 重装 essay-agent
+[2] 进入 esag 运维控制台
+[3] 升级 / 重配
+[4] 卸载 essay-agent
+[0] 退出
+EOF
+    echo ""
+    read -r -p "请选择操作: " choice < /dev/tty || true
+    case "$choice" in
+      1) run_installer; pause ;;
+      2) if is_installed; then operations_console; else warn "尚未安装，请先执行安装"; pause; fi ;;
+      3) if is_installed; then rerun_deploy; pause; else warn "尚未安装，请先执行安装"; pause; fi ;;
+      4) if is_installed; then uninstall_agent; else warn "尚未安装，无需卸载"; pause; fi ;;
       0) exit 0 ;;
       *) warn "无效选择"; pause ;;
     esac
   done
 }
 
-menu_loop
+top_level_menu
