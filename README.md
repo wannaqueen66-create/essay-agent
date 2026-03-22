@@ -503,8 +503,9 @@ sudo esag
 With `esag`, you can interactively:
 
 - run the program manually,
-- edit `.env`,
-- edit `config.yaml`,
+- modify core settings directly from the menu (model, days, max results, score threshold, report sizes, timer time),
+- modify email settings directly from the menu,
+- manage CORE API settings,
 - inspect logs,
 - inspect database status,
 - inspect pending pool,

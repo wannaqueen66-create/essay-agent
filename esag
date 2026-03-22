@@ -8,6 +8,7 @@ SERVICE_USER="arxiv-agent"
 ENV_FILE="$INSTALL_DIR/.env"
 CONFIG_FILE="$INSTALL_DIR/config.yaml"
 VENV_PY="$INSTALL_DIR/.venv/bin/python"
+DEPLOY_SCRIPT="$INSTALL_DIR/deploy.sh"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -33,9 +34,67 @@ require_install() {
   fi
 }
 
+read_env_value() {
+  local key="$1"
+  if [[ ! -f "$ENV_FILE" ]]; then
+    return 0
+  fi
+  local line
+  line="$(grep -E "^${key}=" "$ENV_FILE" | tail -n1 || true)"
+  line="${line#*=}"
+  printf '%s' "$line"
+}
+
+write_env_value() {
+  local key="$1"
+  local value="$2"
+  if grep -q -E "^${key}=" "$ENV_FILE"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+  else
+    echo "${key}=${value}" >> "$ENV_FILE"
+  fi
+}
+
 pause() {
   echo ""
   read -r -p "按回车继续..." _ < /dev/tty || true
+}
+
+ask() {
+  local prompt="$1"
+  local default="$2"
+  local var_name="$3"
+  local input=""
+  if [[ -n "$default" ]]; then
+    read -r -p "$prompt [$default]: " input < /dev/tty || true
+    eval "$var_name=\"${input:-$default}\""
+  else
+    read -r -p "$prompt: " input < /dev/tty || true
+    eval "$var_name=\"${input:-}\""
+  fi
+}
+
+ask_secret() {
+  local prompt="$1"
+  local var_name="$2"
+  local input=""
+  read -r -s -p "$prompt: " input < /dev/tty || true
+  echo "" > /dev/tty
+  eval "$var_name=\"${input:-}\""
+}
+
+confirm() {
+  local prompt="$1"
+  local default="${2:-y}"
+  local yn=""
+  if [[ "$default" == "y" ]]; then
+    read -r -p "$prompt [Y/n]: " yn < /dev/tty || true
+    yn="${yn:-y}"
+  else
+    read -r -p "$prompt [y/N]: " yn < /dev/tty || true
+    yn="${yn:-n}"
+  fi
+  [[ "$yn" =~ ^[Yy]$ ]]
 }
 
 show_header() {
@@ -49,35 +108,39 @@ show_header() {
 
 show_status() {
   require_install
-  local service_status timer_status
+  local service_status timer_status last_run_hint
   service_status="$(systemctl is-active "$SERVICE_NAME" 2>/dev/null || true)"
   timer_status="$(systemctl is-active "$TIMER_NAME" 2>/dev/null || true)"
   echo "服务状态: ${service_status:-unknown}"
   echo "定时器状态: ${timer_status:-unknown}"
   echo "配置文件: $ENV_FILE"
   echo ""
-  if [[ -f "$ENV_FILE" ]]; then
-    echo "当前关键配置："
-    grep -E '^(OPENAI_MODEL|DAYS_BACK|MAX_RESULTS_PER_QUERY|MIN_RELEVANCE_SCORE|REPORT_TOP_N|EMAIL_TOP_N|PENDING_POOL_DAYS|EMAIL_ENABLED|CORE_API_KEY)=' "$ENV_FILE" | sed 's/^/  /' || true
+  echo "当前关键配置："
+  echo "  OPENAI_MODEL=$(read_env_value OPENAI_MODEL)"
+  echo "  DAYS_BACK=$(read_env_value DAYS_BACK)"
+  echo "  MAX_RESULTS_PER_QUERY=$(read_env_value MAX_RESULTS_PER_QUERY)"
+  echo "  MIN_RELEVANCE_SCORE=$(read_env_value MIN_RELEVANCE_SCORE)"
+  echo "  REPORT_TOP_N=$(read_env_value REPORT_TOP_N)"
+  echo "  EMAIL_TOP_N=$(read_env_value EMAIL_TOP_N)"
+  echo "  PENDING_POOL_DAYS=$(read_env_value PENDING_POOL_DAYS)"
+  if [[ "$(read_env_value EMAIL_ENABLED)" == "true" ]]; then
+    echo "  EMAIL_ENABLED=true"
+    echo "  EMAIL_TO=$(read_env_value EMAIL_TO)"
+  else
+    echo "  EMAIL_ENABLED=false"
   fi
+  if [[ -n "$(read_env_value CORE_API_KEY)" ]]; then
+    echo "  CORE_API_KEY=已配置"
+  else
+    echo "  CORE_API_KEY=未配置"
+  fi
+  echo ""
 }
 
 run_now() {
   require_install
   step "立即执行一次主程序"
   sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' arxiv_agent.py"
-}
-
-edit_env() {
-  require_install
-  step "编辑 .env"
-  ${EDITOR:-nano} "$ENV_FILE"
-}
-
-edit_config() {
-  require_install
-  step "编辑 config.yaml"
-  ${EDITOR:-nano} "$CONFIG_FILE"
 }
 
 view_logs() {
@@ -110,10 +173,114 @@ test_email() {
   sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' test_email.py"
 }
 
+apply_timer_time() {
+  local run_time="$1"
+  sed -i "s|OnCalendar=.*|OnCalendar=*-*-* ${run_time}:00|" /etc/systemd/system/arxiv-agent.timer
+  systemctl daemon-reload
+  systemctl restart "$TIMER_NAME"
+}
+
+edit_core_settings() {
+  require_install
+  step "核心配置"
+  local current_model current_days current_max current_score current_report current_email_top current_pending current_time
+  current_model="$(read_env_value OPENAI_MODEL)"
+  current_days="$(read_env_value DAYS_BACK)"
+  current_max="$(read_env_value MAX_RESULTS_PER_QUERY)"
+  current_score="$(read_env_value MIN_RELEVANCE_SCORE)"
+  current_report="$(read_env_value REPORT_TOP_N)"
+  current_email_top="$(read_env_value EMAIL_TOP_N)"
+  current_pending="$(read_env_value PENDING_POOL_DAYS)"
+  current_time="$(systemctl cat "$TIMER_NAME" 2>/dev/null | awk -F'=' '/OnCalendar=/{print $2}' | tail -n1 | sed 's/.* //; s/:00$//')"
+  current_time="${current_time:-07:00}"
+
+  ask "模型名称" "$current_model" new_model
+  ask "抓取最近几天论文（DAYS_BACK）" "$current_days" new_days
+  ask "每个 query 每个源最大抓取数（MAX_RESULTS_PER_QUERY）" "$current_max" new_max
+  ask "最低相关性阈值（MIN_RELEVANCE_SCORE）" "$current_score" new_score
+  ask "Markdown 报告展示前 N 条（REPORT_TOP_N）" "$current_report" new_report
+  ask "邮件正文展示前 N 条（EMAIL_TOP_N）" "$current_email_top" new_email_top
+  ask "待展示池窗口天数（PENDING_POOL_DAYS）" "$current_pending" new_pending
+  ask "每天自动运行时间（如 07:00）" "$current_time" new_time
+
+  write_env_value OPENAI_MODEL "$new_model"
+  write_env_value DAYS_BACK "$new_days"
+  write_env_value MAX_RESULTS_PER_QUERY "$new_max"
+  write_env_value MIN_RELEVANCE_SCORE "$new_score"
+  write_env_value REPORT_TOP_N "$new_report"
+  write_env_value EMAIL_TOP_N "$new_email_top"
+  write_env_value PENDING_POOL_DAYS "$new_pending"
+  apply_timer_time "$new_time"
+  info "核心配置已更新"
+}
+
+edit_email_settings() {
+  require_install
+  step "邮件配置"
+  local enabled host port username password from to tls
+  enabled="$(read_env_value EMAIL_ENABLED)"
+  host="$(read_env_value EMAIL_SMTP_HOST)"
+  port="$(read_env_value EMAIL_SMTP_PORT)"
+  username="$(read_env_value EMAIL_USERNAME)"
+  from="$(read_env_value EMAIL_FROM)"
+  to="$(read_env_value EMAIL_TO)"
+  tls="$(read_env_value EMAIL_USE_TLS)"
+
+  if confirm "是否启用邮件推送？" "${enabled:-n}"; then
+    enabled="true"
+    ask "SMTP 主机" "${host:-smtp-relay.brevo.com}" host
+    ask "SMTP 端口" "${port:-587}" port
+    ask "SMTP 用户名" "$username" username
+    ask_secret "SMTP 密码（留空则保留原值）" password
+    ask "发件人邮箱" "$from" from
+    ask "收件人邮箱（多个用英文逗号分隔）" "$to" to
+    ask "是否启用 TLS（true/false）" "${tls:-true}" tls
+
+    write_env_value EMAIL_ENABLED "$enabled"
+    write_env_value EMAIL_SMTP_HOST "$host"
+    write_env_value EMAIL_SMTP_PORT "$port"
+    write_env_value EMAIL_USERNAME "$username"
+    if [[ -n "$password" ]]; then
+      write_env_value EMAIL_PASSWORD "$password"
+    fi
+    write_env_value EMAIL_FROM "$from"
+    write_env_value EMAIL_TO "$to"
+    write_env_value EMAIL_USE_TLS "$tls"
+  else
+    write_env_value EMAIL_ENABLED false
+  fi
+  info "邮件配置已更新"
+}
+
+edit_source_settings() {
+  require_install
+  step "数据源与 CORE 配置"
+  local current_core
+  current_core="$(read_env_value CORE_API_KEY)"
+  if [[ -n "$current_core" ]]; then
+    echo "当前 CORE API Key：已配置"
+  else
+    echo "当前 CORE API Key：未配置"
+  fi
+  echo ""
+  echo "说明：source 开关和 target_journals 这类复杂配置仍建议直接编辑 config.yaml。"
+  echo "这里先提供最常用的 CORE API Key 交互修改。"
+  echo ""
+  if confirm "是否配置 / 更新 CORE API Key？" "n"; then
+    ask_secret "CORE API Key（留空可清空）" new_core
+    write_env_value CORE_API_KEY "$new_core"
+    info "CORE API Key 已更新"
+  fi
+  echo ""
+  if confirm "是否打开 config.yaml 继续编辑更复杂的数据源配置？" "n"; then
+    ${EDITOR:-nano} "$CONFIG_FILE"
+  fi
+}
+
 rerun_deploy() {
   require_install
   step "重新执行部署脚本（升级 / 重配）"
-  bash "$INSTALL_DIR/deploy.sh"
+  bash "$DEPLOY_SCRIPT"
 }
 
 uninstall_agent() {
@@ -152,30 +319,32 @@ menu_loop() {
     show_status
     cat <<'EOF'
 [1] 立即运行一次
-[2] 编辑 .env
-[3] 编辑 config.yaml
-[4] 查看最近日志
-[5] 实时跟踪日志
-[6] 查看数据库总览
-[7] 查看待展示池
-[8] 测试邮箱
-[9] 重新执行部署脚本（升级 / 重配）
-[10] 卸载 essay-agent
+[2] 核心配置（模型 / 天数 / 阈值 / 定时）
+[3] 邮件配置
+[4] 数据源与 CORE 配置
+[5] 查看最近日志
+[6] 实时跟踪日志
+[7] 查看数据库总览
+[8] 查看待展示池
+[9] 测试邮箱
+[10] 重新执行部署脚本（升级 / 重配）
+[11] 卸载 essay-agent
 [0] 退出
 EOF
     echo ""
     read -r -p "请选择操作: " choice < /dev/tty || true
     case "$choice" in
       1) run_now; pause ;;
-      2) edit_env; pause ;;
-      3) edit_config; pause ;;
-      4) view_logs; pause ;;
-      5) follow_logs ;;
-      6) inspect_db; pause ;;
-      7) show_pending; pause ;;
-      8) test_email; pause ;;
-      9) rerun_deploy; pause ;;
-      10) uninstall_agent ;;
+      2) edit_core_settings; pause ;;
+      3) edit_email_settings; pause ;;
+      4) edit_source_settings; pause ;;
+      5) view_logs; pause ;;
+      6) follow_logs ;;
+      7) inspect_db; pause ;;
+      8) show_pending; pause ;;
+      9) test_email; pause ;;
+      10) rerun_deploy; pause ;;
+      11) uninstall_agent ;;
       0) exit 0 ;;
       *) warn "无效选择"; pause ;;
     esac
