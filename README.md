@@ -8,24 +8,27 @@
 ## Table of Contents / 目录
 
 - [1. What This Project Is / 项目是什么](#1-what-this-project-is--项目是什么)
-- [2. What Problem It Solves / 解决什么问题](#2-what-problem-it-solves--解决什么问题)
-- [3. Core Features / 核心功能](#3-core-features--核心功能)
-- [4. Supported Sources / 支持的数据源](#4-supported-sources--支持的数据源)
-- [5. Target Journal Monitoring / 目标期刊监控](#5-target-journal-monitoring--目标期刊监控)
-- [6. Project Structure / 项目结构](#6-project-structure--项目结构)
-- [7. One-Command VPS Install / 一条命令部署到 VPS](#7-one-command-vps-install--一条命令部署到-vps)
-- [8. Manual Installation / 手动安装](#8-manual-installation--手动安装)
-- [9. Interactive Environment Configuration / 交互式环境配置](#9-interactive-environment-configuration--交互式环境配置)
-- [10. Configuration Reference / 配置说明](#10-configuration-reference--配置说明)
-- [11. How to Run / 如何运行](#11-how-to-run--如何运行)
-- [12. Output Files / 输出结果](#12-output-files--输出结果)
-- [13. Utility Scripts / 辅助脚本](#13-utility-scripts--辅助脚本)
-- [14. systemd Timer and Service / systemd 定时服务](#14-systemd-timer-and-service--systemd-定时服务)
-- [15. Suggested Beginner Setup / 新手建议配置](#15-suggested-beginner-setup--新手建议配置)
-- [16. FAQ / 常见问题](#16-faq--常见问题)
-- [17. Notes and Limitations / 注意事项与当前限制](#17-notes-and-limitations--注意事项与当前限制)
-- [18. Chinese Documentation / 中文文档](#18-chinese-documentation--中文文档)
-- [19. License / 许可证](#19-license--许可证)
+- [2. Who This Project Is For / 适合谁用](#2-who-this-project-is-for--适合谁用)
+- [3. What Problem It Solves / 解决什么问题](#3-what-problem-it-solves--解决什么问题)
+- [4. Why It Is Useful / 为什么它有用](#4-why-it-is-useful--为什么它有用)
+- [5. Core Features / 核心功能](#5-core-features--核心功能)
+- [6. Supported Sources / 支持的数据源](#6-supported-sources--支持的数据源)
+- [7. Target Journal Monitoring / 目标期刊监控](#7-target-journal-monitoring--目标期刊监控)
+- [8. Project Structure / 项目结构](#8-project-structure--项目结构)
+- [9. One-Command VPS Install / 一条命令部署到 VPS](#9-one-command-vps-install--一条命令部署到-vps)
+- [10. Manual Installation / 手动安装](#10-manual-installation--手动安装)
+- [11. Interactive Environment Configuration / 交互式环境配置](#11-interactive-environment-configuration--交互式环境配置)
+- [12. Configuration Reference / 配置说明](#12-configuration-reference--配置说明)
+- [13. How to Run / 如何运行](#13-how-to-run--如何运行)
+- [14. Update and Upgrade / 更新与升级](#14-update-and-upgrade--更新与升级)
+- [15. Output Files / 输出结果](#15-output-files--输出结果)
+- [16. Utility Scripts / 辅助脚本](#16-utility-scripts--辅助脚本)
+- [17. systemd Timer and Service / systemd 定时服务](#17-systemd-timer-and-service--systemd-定时服务)
+- [18. Suggested Beginner Setup / 新手建议配置](#18-suggested-beginner-setup--新手建议配置)
+- [19. FAQ / 常见问题](#19-faq--常见问题)
+- [20. Notes and Limitations / 注意事项与当前限制](#20-notes-and-limitations--注意事项与当前限制)
+- [21. Chinese Documentation / 中文文档](#21-chinese-documentation--中文文档)
+- [22. License / 许可证](#22-license--许可证)
 
 ---
 
@@ -47,7 +50,27 @@ It is especially suitable for topics such as:
 
 ---
 
-## 2. What Problem It Solves / 解决什么问题
+## 2. Who This Project Is For / 适合谁用
+
+This project is especially suitable for:
+
+- researchers who need daily paper monitoring;
+- users who want Chinese summaries instead of reading every abstract manually;
+- architecture / sports space / behavior / VR researchers;
+- VPS users who want a low-maintenance scheduled workflow;
+- people who prefer a **copy-one-command-and-deploy** style setup.
+
+这个项目尤其适合：
+
+- 需要每天监测新论文的研究者；
+- 希望先看中文摘要，而不是逐篇手动读英文摘要的人；
+- 建筑学 / 体育空间 / 空间行为 / VR 方向的研究者；
+- 想把任务稳定跑在 VPS 上的人；
+- 喜欢“复制一条命令就部署”的使用方式的人。
+
+---
+
+## 3. What Problem It Solves / 解决什么问题
 
 ### English
 
@@ -85,7 +108,29 @@ This project solves that by turning paper monitoring into a repeatable workflow:
 
 ---
 
-## 3. Core Features / 核心功能
+## 4. Why It Is Useful / 为什么它有用
+
+Compared with a normal paper crawler, this project is useful because it does not stop at “collecting titles.” It continues through analysis, filtering, storage, reporting, and optional email delivery.
+
+和普通“抓论文标题”的脚本相比，这个项目有用的地方在于：它不止停留在“抓到东西”，而是继续做了分析、过滤、存储、报告和推送，形成了完整闭环。
+
+In practice, that means:
+
+- less manual reading;
+- less repetitive searching;
+- more structured daily review;
+- easier accumulation of a domain-specific paper database.
+
+在实际使用里，这意味着：
+
+- 少手工读摘要；
+- 少重复做检索；
+- 更容易形成稳定的日报习惯；
+- 更容易积累自己的领域文献数据库。
+
+---
+
+## 5. Core Features / 核心功能
 
 ### English
 
@@ -119,7 +164,7 @@ This project solves that by turning paper monitoring into a repeatable workflow:
 
 ---
 
-## 4. Supported Sources / 支持的数据源
+## 6. Supported Sources / 支持的数据源
 
 | Source | Type | Auth Required | Notes |
 |---|---|---|---|
@@ -134,7 +179,7 @@ This project solves that by turning paper monitoring into a repeatable workflow:
 
 ---
 
-## 5. Target Journal Monitoring / 目标期刊监控
+## 7. Target Journal Monitoring / 目标期刊监控
 
 Besides keyword-based search, the project can directly monitor selected journals through ISSN filtering. This helps you catch important papers even if their titles do not fully match your generic search queries.
 
@@ -151,7 +196,7 @@ Pre-configured examples include journals from:
 
 ---
 
-## 6. Project Structure / 项目结构
+## 8. Project Structure / 项目结构
 
 ```text
 essay-agent/
@@ -182,7 +227,7 @@ output/
 
 ---
 
-## 7. One-Command VPS Install / 一条命令部署到 VPS
+## 9. One-Command VPS Install / 一条命令部署到 VPS
 
 If your VPS already has `curl` and `sudo`, you can deploy the project with **one bash command**.
 
@@ -214,7 +259,7 @@ The installer will:
 1. 安装系统依赖；
 2. 拉取最新仓库代码；
 3. 启动**交互式配置流程**；
-4. 询问你的 OpenAI API 配置；
+4. 询问 OpenAI API 配置；
 5. 可选询问邮件推送配置；
 6. 询问运行参数（如 `DAYS_BACK`、`MIN_RELEVANCE_SCORE`）；
 7. 自动生成 `.env`；
@@ -232,46 +277,46 @@ So the expected experience is:
 
 ---
 
-## 8. Manual Installation / 手动安装
+## 10. Manual Installation / 手动安装
 
 If you prefer manual setup, use the following steps.
 
 如果你不想用一键脚本，也可以手动安装。
 
-### 8.1 Install system packages / 安装系统依赖
+### 10.1 Install system packages / 安装系统依赖
 
 ```bash
 apt update && apt install -y python3 python3-pip python3-venv git
 ```
 
-### 8.2 Clone repository / 克隆仓库
+### 10.2 Clone repository / 克隆仓库
 
 ```bash
 git clone git@github.com:wannaqueen66-create/essay-agent.git
 cd essay-agent
 ```
 
-### 8.3 Create virtual environment / 创建虚拟环境
+### 10.3 Create virtual environment / 创建虚拟环境
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 8.4 Install dependencies / 安装依赖
+### 10.4 Install dependencies / 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 8.5 Create `.env` / 创建 `.env`
+### 10.5 Create `.env` / 创建 `.env`
 
 ```bash
 cp .env.example .env
 nano .env
 ```
 
-### 8.6 Run the program / 运行程序
+### 10.6 Run the program / 运行程序
 
 ```bash
 python arxiv_agent.py
@@ -279,7 +324,7 @@ python arxiv_agent.py
 
 ---
 
-## 9. Interactive Environment Configuration / 交互式环境配置
+## 11. Interactive Environment Configuration / 交互式环境配置
 
 If you use the one-command installer, the script will ask you for:
 
@@ -302,7 +347,7 @@ If you use the one-command installer, the script will ask you for:
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`（可选）
 - `OPENAI_MODEL`
-- 是否启用邮件推送
+- 是否启用邮件
 - 若启用邮件，则继续询问 SMTP 配置
 - `DAYS_BACK`
 - `MAX_RESULTS_PER_QUERY`
@@ -319,9 +364,9 @@ This means you do **not** need to manually write the `.env` file during deployme
 
 ---
 
-## 10. Configuration Reference / 配置说明
+## 12. Configuration Reference / 配置说明
 
-### 10.1 `.env` runtime parameters / `.env` 运行时参数
+### 12.1 `.env` runtime parameters / `.env` 运行时参数
 
 | Variable | Description | 说明 |
 |---|---|---|
@@ -346,7 +391,7 @@ This means you do **not** need to manually write the `.env` file during deployme
 | `PENDING_POOL_DAYS` | Pending pool window | 待展示池窗口天数 |
 | `EMPTY_REPORT_EMAIL` | Send email even when empty | 为空时是否也发邮件 |
 
-### 10.2 `config.yaml` project parameters / `config.yaml` 项目参数
+### 12.2 `config.yaml` project parameters / `config.yaml` 项目参数
 
 | Section | Description | 说明 |
 |---|---|---|
@@ -362,7 +407,7 @@ This means you do **not** need to manually write the `.env` file during deployme
 
 ---
 
-## 11. How to Run / 如何运行
+## 13. How to Run / 如何运行
 
 ### Manual one-time run / 手动运行一次
 
@@ -384,7 +429,52 @@ journalctl -u arxiv-agent -f
 
 ---
 
-## 12. Output Files / 输出结果
+## 14. Update and Upgrade / 更新与升级
+
+If you already deployed the project once and want to update it later, the recommended approach is simple:
+
+如果你已经部署过一次，后续想升级，推荐做法也很简单：
+
+### Recommended upgrade flow / 推荐升级流程
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
+```
+
+The deploy script is designed to be reusable. Running it again will:
+
+- pull the latest repository code,
+- keep using the same installation directory,
+- recreate / refresh service files,
+- let you re-enter interactive configuration if needed,
+- and optionally run a test execution again.
+
+这个部署脚本是可重复使用的。再次执行时，它会：
+
+- 拉取最新仓库代码；
+- 继续使用同一个安装目录；
+- 刷新 service / timer；
+- 如有需要重新进入交互式配置；
+- 可选再试运行一次。
+
+### If you only want to edit runtime settings / 如果你只想改运行参数
+
+```bash
+sudo nano /opt/arxiv-agent/.env
+sudo systemctl restart arxiv-agent.timer
+```
+
+### If you changed only `config.yaml` / 如果你只改了 `config.yaml`
+
+```bash
+sudo nano /opt/arxiv-agent/config.yaml
+```
+
+Then the next scheduled run will use the updated config.
+
+---
+
+## 15. Output Files / 输出结果
 
 Each successful run generates files like:
 
@@ -427,7 +517,7 @@ When 0 papers are kept, the report still explains:
 
 ---
 
-## 13. Utility Scripts / 辅助脚本
+## 16. Utility Scripts / 辅助脚本
 
 ```bash
 python inspect_db.py
@@ -455,7 +545,7 @@ python send_output_email.py --date 2026-03-08 --mark-db
 
 ---
 
-## 14. systemd Timer and Service / systemd 定时服务
+## 17. systemd Timer and Service / systemd 定时服务
 
 The repository includes ready-made systemd files:
 
@@ -479,7 +569,7 @@ journalctl -u arxiv-agent -f
 
 ---
 
-## 15. Suggested Beginner Setup / 新手建议配置
+## 18. Suggested Beginner Setup / 新手建议配置
 
 If you are running this for the first time, start small:
 
@@ -508,7 +598,7 @@ Why this is recommended:
 
 ---
 
-## 16. FAQ / 常见问题
+## 19. FAQ / 常见问题
 
 ### Q1. `ModuleNotFoundError` when running / 运行时报缺包错误
 
@@ -548,7 +638,7 @@ That is the intended deployment flow.
 
 ---
 
-## 17. Notes and Limitations / 注意事项与当前限制
+## 20. Notes and Limitations / 注意事项与当前限制
 
 This project is already useful and complete enough for daily research monitoring, but it is still closer to a **practical research tool** than a fully modular enterprise-grade system.
 
@@ -570,7 +660,7 @@ Current limitations include:
 
 ---
 
-## 18. Chinese Documentation / 中文文档
+## 21. Chinese Documentation / 中文文档
 
 For a standalone Chinese document, see:
 
@@ -582,7 +672,7 @@ For a standalone Chinese document, see:
 
 ---
 
-## 19. License / 许可证
+## 22. License / 许可证
 
 This repository uses the existing `LICENSE` file.
 
