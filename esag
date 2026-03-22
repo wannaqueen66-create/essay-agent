@@ -117,6 +117,18 @@ last_run_result() {
   systemctl show "$SERVICE_NAME" -p Result --value 2>/dev/null || true
 }
 
+current_commit() {
+  if [[ -d "$INSTALL_DIR/.git" ]]; then
+    git -C "$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || true
+  fi
+}
+
+last_upgrade_time() {
+  if [[ -f "$INSTALL_DIR/.last_upgrade" ]]; then
+    cat "$INSTALL_DIR/.last_upgrade" 2>/dev/null || true
+  fi
+}
+
 recent_outputs() {
   if [[ ! -d "$OUTPUT_DIR" ]]; then
     return 0
@@ -185,13 +197,15 @@ show_header() {
 
 show_dashboard() {
   require_install
-  local s t last_start last_result run_time source_count journal_count outputs
+  local s t last_start last_result run_time source_count journal_count outputs commit_id upgraded_at
   s="$(service_status)"
   t="$(timer_status)"
   last_start="$(last_run_time)"
   last_result="$(last_run_result)"
   run_time="$(current_timer_time)"
   run_time="${run_time:-07:00}"
+  commit_id="$(current_commit)"
+  upgraded_at="$(last_upgrade_time)"
   source_count="$(awk '
     /^sources:/ {in_sources=1; next}
     in_sources && /^[[:space:]]*-[[:space:]]/ {count++}
@@ -208,6 +222,8 @@ show_dashboard() {
   echo "  服务状态        : ${s:-unknown}"
   echo "  定时器状态      : ${t:-unknown}"
   echo "  每日运行时间    : $run_time"
+  echo "  当前版本(commit): ${commit_id:-unknown}"
+  echo "  最近升级时间    : ${upgraded_at:-unknown}"
   echo "  上次运行时间    : ${last_start:-unknown}"
   echo "  上次运行结果    : ${last_result:-unknown}"
   echo ""
@@ -442,11 +458,13 @@ edit_source_settings() {
 upgrade_program_keep_config() {
   require_install
   step "升级程序（保留当前配置）"
-  local tmp_src backup_dir
+  local tmp_src backup_dir before_commit after_commit
   tmp_src="$(mktemp -d /tmp/essay-agent-upgrade.XXXXXX)"
   backup_dir="$(mktemp -d /tmp/essay-agent-backup.XXXXXX)"
   trap 'rm -rf "$tmp_src" "$backup_dir"' RETURN
+  before_commit="$(current_commit)"
 
+  info "当前版本: ${before_commit:-unknown}"
   info "备份当前关键文件 ..."
   cp -f "$ENV_FILE" "$backup_dir/.env"
   cp -f "$CONFIG_FILE" "$backup_dir/config.yaml"
@@ -460,7 +478,15 @@ upgrade_program_keep_config() {
   fi
 
   info "同步程序文件 ..."
-  cp -a "$tmp_src"/. "$INSTALL_DIR"/
+  if ! cp -a "$tmp_src"/. "$INSTALL_DIR"/; then
+    warn "程序文件同步失败，开始回滚配置备份 ..."
+    cp -f "$backup_dir/.env" "$ENV_FILE" 2>/dev/null || true
+    cp -f "$backup_dir/config.yaml" "$CONFIG_FILE" 2>/dev/null || true
+    if [[ -f "$backup_dir/papers.db" ]]; then
+      cp -f "$backup_dir/papers.db" "$INSTALL_DIR/papers.db" 2>/dev/null || true
+    fi
+    error "升级失败：文件同步异常，已尝试回滚配置备份"
+  fi
 
   info "恢复原配置 ..."
   cp -f "$backup_dir/.env" "$ENV_FILE"
@@ -470,8 +496,18 @@ upgrade_program_keep_config() {
   fi
 
   info "刷新依赖与服务文件 ..."
-  "$INSTALL_DIR/.venv/bin/pip" install -q --upgrade pip >/dev/null 2>&1 || true
-  "$INSTALL_DIR/.venv/bin/pip" install -q -r "$INSTALL_DIR/requirements.txt" >/dev/null 2>&1 || true
+  if ! "$INSTALL_DIR/.venv/bin/pip" install -q --upgrade pip >/dev/null 2>&1; then
+    warn "pip 自升级失败，继续尝试安装依赖"
+  fi
+  if ! "$INSTALL_DIR/.venv/bin/pip" install -q -r "$INSTALL_DIR/requirements.txt" >/dev/null 2>&1; then
+    warn "依赖安装失败，开始回滚配置备份 ..."
+    cp -f "$backup_dir/.env" "$ENV_FILE" 2>/dev/null || true
+    cp -f "$backup_dir/config.yaml" "$CONFIG_FILE" 2>/dev/null || true
+    if [[ -f "$backup_dir/papers.db" ]]; then
+      cp -f "$backup_dir/papers.db" "$INSTALL_DIR/papers.db" 2>/dev/null || true
+    fi
+    error "升级失败：依赖安装异常，已回滚配置备份"
+  fi
   cp "$INSTALL_DIR/deploy/essay-agent.service" /etc/systemd/system/
   cp "$INSTALL_DIR/deploy/essay-agent.timer" /etc/systemd/system/
   cp "$INSTALL_DIR/esag" /usr/local/bin/esag
@@ -481,7 +517,10 @@ upgrade_program_keep_config() {
   systemctl daemon-reload
   systemctl restart "$TIMER_NAME" >/dev/null 2>&1 || true
 
-  info "升级完成：已保留现有 .env / config.yaml / papers.db"
+  after_commit="$(current_commit)"
+  date '+%Y-%m-%d %H:%M:%S %Z' > "$INSTALL_DIR/.last_upgrade"
+  info "升级完成：${before_commit:-unknown} -> ${after_commit:-unknown}"
+  info "已保留现有 .env / config.yaml / papers.db"
 }
 
 rerun_deploy() {

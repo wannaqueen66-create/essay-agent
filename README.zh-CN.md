@@ -512,6 +512,7 @@ sudo esag
 现在的 `esag` 已经更接近一个菜单式终端控制台了，它提供：
 
 - 状态首页
+- 首页直接显示当前已安装 commit 与最近升级时间
 - 核心配置子菜单
 - 邮件配置子菜单
 - 数据源 / CORE 子菜单
@@ -547,6 +548,15 @@ curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/mai
 - 刷新 service / timer；
 - 如有需要重新进入交互式配置；
 - 可选再试运行一次。
+
+在 `esag` 里，现在已经把“升级程序”和“全量重配”拆开：
+
+- **升级程序（保留当前配置）**
+  - 会显示升级前后 commit
+  - 保留 `.env`、`config.yaml`、`papers.db`
+  - 首页会记录最近升级时间
+- **全量重配**
+  - 会重新进入完整部署向导
 
 ### 如果你只想改运行参数
 

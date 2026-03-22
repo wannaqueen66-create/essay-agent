@@ -524,6 +524,7 @@ sudo esag
 With `esag`, you now get a more panel-like terminal experience with:
 
 - a status homepage,
+- current installed commit and recent upgrade time on the homepage,
 - submenus for core settings,
 - submenus for email settings,
 - submenus for sources / CORE,
@@ -575,6 +576,15 @@ The deploy script is designed to be reusable. Running it again will:
 - recreate / refresh service files,
 - let you re-enter interactive configuration if needed,
 - and optionally run a test execution again.
+
+In `esag`, the dedicated upgrade path now separates this from full reconfiguration:
+
+- **Upgrade program (keep current config)**
+  - shows upgrade before/after commit
+  - preserves `.env`, `config.yaml`, and `papers.db`
+  - records the latest upgrade time on the dashboard
+- **Full reconfigure**
+  - re-runs the full deploy wizard
 
 这个部署脚本是可重复使用的。再次执行时，它会：
 
