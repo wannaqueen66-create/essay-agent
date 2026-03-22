@@ -241,15 +241,15 @@ target_journals:
 
 ```text
 essay-agent/
-├── arxiv_agent.py              # 主程序
+├── essay_agent.py              # 主程序
 ├── config.yaml                 # 检索式、数据源、目标期刊等配置
 ├── requirements.txt            # Python 依赖
 ├── .env.example                # 环境变量模板
 ├── deploy.sh                   # 首次安装 / 部署脚本
 ├── esag                        # 交互式运维管理脚本
 ├── deploy/
-│   ├── arxiv-agent.service     # systemd 服务单元
-│   └── arxiv-agent.timer       # systemd 定时器
+│   ├── essay-agent.service     # systemd 服务单元
+│   └── essay-agent.timer       # systemd 定时器
 ├── inspect_db.py               # 数据库总览
 ├── reset_reported.py           # 重置展示/上报状态
 ├── send_output_email.py        # 重发已有 output 报告
@@ -389,7 +389,7 @@ nano .env
 ### 10.6 运行程序
 
 ```bash
-python arxiv_agent.py
+python essay_agent.py
 ```
 
 ---
@@ -483,19 +483,19 @@ python arxiv_agent.py
 ### 手动运行一次
 
 ```bash
-python arxiv_agent.py
+python essay_agent.py
 ```
 
-### 如果是通过部署脚本安装到 `/opt/arxiv-agent`
+### 如果是通过部署脚本安装到 `/opt/essay-agent`
 
 ```bash
-sudo -u arxiv-agent /opt/arxiv-agent/.venv/bin/python /opt/arxiv-agent/arxiv_agent.py
+sudo -u essay-agent /opt/essay-agent/.venv/bin/python /opt/essay-agent/essay_agent.py
 ```
 
 ### 查看日志
 
 ```bash
-journalctl -u arxiv-agent -f
+journalctl -u essay-agent -f
 ```
 
 ---
@@ -550,14 +550,14 @@ curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/mai
 ### 如果你只想改运行参数
 
 ```bash
-sudo nano /opt/arxiv-agent/.env
-sudo systemctl restart arxiv-agent.timer
+sudo nano /opt/essay-agent/.env
+sudo systemctl restart essay-agent.timer
 ```
 
 ### 如果你只改了 `config.yaml`
 
 ```bash
-sudo nano /opt/arxiv-agent/config.yaml
+sudo nano /opt/essay-agent/config.yaml
 ```
 
 下次运行时就会自动使用新的配置。
@@ -631,16 +631,16 @@ python send_output_email.py --date 2026-03-08 --mark-db
 
 项目自带：
 
-- `deploy/arxiv-agent.service`
-- `deploy/arxiv-agent.timer`
+- `deploy/essay-agent.service`
+- `deploy/essay-agent.timer`
 
 ### 常用命令
 
 ```bash
-systemctl status arxiv-agent.timer
-systemctl status arxiv-agent.service
-journalctl -u arxiv-agent -n 200 --no-pager
-journalctl -u arxiv-agent -f
+systemctl status essay-agent.timer
+systemctl status essay-agent.service
+journalctl -u essay-agent -n 200 --no-pager
+journalctl -u essay-agent -f
 ```
 
 如果你使用一键部署脚本，这些会自动安装好。

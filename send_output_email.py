@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """send_output_email.py
 
-Send an arxiv_agent daily report email using EXISTING output files (xlsx/md/stats),
+Send an essay_agent daily report email using EXISTING output files (xlsx/md/stats),
 without re-running fetch/analyze.
 
-- Email body format matches arxiv_agent.py::build_email_body()
+- Email body format matches essay_agent.py::build_email_body()
 - Optional: reset DB displayed/reported flags (ALL) before sending (testing)
 - Optional: after successful send, mark DB displayed+reported for rows in the XLSX
 
-Run inside /root/arxiv_agent (needs .env, config.yaml, papers.db, output/...).
+Run inside /root/essay_agent (needs .env, config.yaml, papers.db, output/...).
 
 Examples:
   python3 send_output_email.py --mark-db
@@ -80,10 +80,10 @@ def load_config_yaml(path: str = "config.yaml") -> dict:
         return {}
 
 
-# === Match arxiv_agent.py::build_email_body ===
+# === Match essay_agent.py::build_email_body ===
 def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5) -> str:
     lines: list[str] = []
-    lines.append(f"arxiv_agent 文献简报｜{today_str}")
+    lines.append(f"essay_agent 文献简报｜{today_str}")
     lines.append("")
 
     if df is None or df.empty:
@@ -207,7 +207,7 @@ def main():
     df = pd.read_excel(xlsx_path).fillna("")
 
     # Email content (match main program)
-    subject = f"[arxiv_agent] 文献简报 {args.date}｜收录 {len(df)} 篇"
+    subject = f"[essay_agent] 文献简报 {args.date}｜收录 {len(df)} 篇"
     top_n = int((env.get("EMAIL_TOP_N") or "5").strip())
     body = build_email_body(df, args.date, top_n=top_n)
 

@@ -200,15 +200,15 @@ Pre-configured examples include journals from:
 
 ```text
 essay-agent/
-├── arxiv_agent.py              # Main program / 主程序
+├── essay_agent.py              # Main program / 主程序
 ├── config.yaml                 # Search queries, source list, journal list / 配置文件
 ├── requirements.txt            # Python dependencies / Python 依赖
 ├── .env.example                # Environment variable template / 环境变量模板
 ├── deploy.sh                   # Interactive installer / 安装部署脚本
 ├── esag                        # Interactive operations panel / 交互式运维管理脚本
 ├── deploy/
-│   ├── arxiv-agent.service     # systemd service unit
-│   └── arxiv-agent.timer       # systemd timer unit
+│   ├── essay-agent.service     # systemd service unit
+│   └── essay-agent.timer       # systemd timer unit
 ├── inspect_db.py               # Database overview
 ├── reset_reported.py           # Reset displayed/reported flags
 ├── send_output_email.py        # Resend existing report files
@@ -370,7 +370,7 @@ nano .env
 ### 10.6 Run the program / 运行程序
 
 ```bash
-python arxiv_agent.py
+python essay_agent.py
 ```
 
 ---
@@ -489,19 +489,19 @@ If you do not have a CORE key yet, the project can still run with the other enab
 ### Manual one-time run / 手动运行一次
 
 ```bash
-python arxiv_agent.py
+python essay_agent.py
 ```
 
 ### If deployed through `deploy.sh` / 如果通过 `deploy.sh` 部署
 
 ```bash
-sudo -u arxiv-agent /opt/arxiv-agent/.venv/bin/python /opt/arxiv-agent/arxiv_agent.py
+sudo -u essay-agent /opt/essay-agent/.venv/bin/python /opt/essay-agent/essay_agent.py
 ```
 
 ### Follow logs / 查看日志
 
 ```bash
-journalctl -u arxiv-agent -f
+journalctl -u essay-agent -f
 ```
 
 ---
@@ -586,14 +586,14 @@ The deploy script is designed to be reusable. Running it again will:
 ### If you only want to edit runtime settings / 如果你只想改运行参数
 
 ```bash
-sudo nano /opt/arxiv-agent/.env
-sudo systemctl restart arxiv-agent.timer
+sudo nano /opt/essay-agent/.env
+sudo systemctl restart essay-agent.timer
 ```
 
 ### If you changed only `config.yaml` / 如果你只改了 `config.yaml`
 
 ```bash
-sudo nano /opt/arxiv-agent/config.yaml
+sudo nano /opt/essay-agent/config.yaml
 ```
 
 Then the next scheduled run will use the updated config.
@@ -675,8 +675,8 @@ python send_output_email.py --date 2026-03-08 --mark-db
 
 The repository includes ready-made systemd files:
 
-- `deploy/arxiv-agent.service`
-- `deploy/arxiv-agent.timer`
+- `deploy/essay-agent.service`
+- `deploy/essay-agent.timer`
 
 ### Default behavior / 默认行为
 
@@ -687,10 +687,10 @@ The repository includes ready-made systemd files:
 ### Common commands / 常用命令
 
 ```bash
-systemctl status arxiv-agent.timer
-systemctl status arxiv-agent.service
-journalctl -u arxiv-agent -n 200 --no-pager
-journalctl -u arxiv-agent -f
+systemctl status essay-agent.timer
+systemctl status essay-agent.service
+journalctl -u essay-agent -n 200 --no-pager
+journalctl -u essay-agent -f
 ```
 
 ---

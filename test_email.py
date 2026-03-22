@@ -33,11 +33,11 @@ def main():
         raise ValueError(f"缺少必要环境变量：{', '.join(missing)}")
 
     msg = EmailMessage()
-    msg["Subject"] = "arxiv_agent 邮件测试"
+    msg["Subject"] = "essay_agent 邮件测试"
     msg["From"] = mail_from
     msg["To"] = mail_to
     msg.set_content(
-        "这是一封来自 arxiv_agent 的测试邮件。\n\n"
+        "这是一封来自 essay_agent 的测试邮件。\n\n"
         "如果你收到了这封邮件，说明当前的 Brevo SMTP 配置是可用的。"
     )
 

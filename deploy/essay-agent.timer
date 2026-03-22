@@ -1,5 +1,5 @@
 [Unit]
-Description=Run arxiv-agent daily at 07:00
+Description=Run essay-agent daily at 07:00
 
 [Timer]
 OnCalendar=*-*-* 07:00:00

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INSTALL_DIR="/opt/arxiv-agent"
-SERVICE_NAME="arxiv-agent.service"
-TIMER_NAME="arxiv-agent.timer"
-SERVICE_USER="arxiv-agent"
+INSTALL_DIR="/opt/essay-agent"
+SERVICE_NAME="essay-agent.service"
+TIMER_NAME="essay-agent.timer"
+SERVICE_USER="essay-agent"
 ENV_FILE="$INSTALL_DIR/.env"
 CONFIG_FILE="$INSTALL_DIR/config.yaml"
 VENV_PY="$INSTALL_DIR/.venv/bin/python"
@@ -265,7 +265,7 @@ run_installer() {
 run_now() {
   require_install
   step "立即执行一次主程序"
-  sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' arxiv_agent.py"
+  sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' essay_agent.py"
 }
 
 view_logs() {
@@ -303,7 +303,7 @@ open_config_editor() { require_install; ${EDITOR:-nano} "$CONFIG_FILE"; }
 
 apply_timer_time() {
   local run_time="$1"
-  sed -i "s|OnCalendar=.*|OnCalendar=*-*-* ${run_time}:00|" /etc/systemd/system/arxiv-agent.timer
+  sed -i "s|OnCalendar=.*|OnCalendar=*-*-* ${run_time}:00|" /etc/systemd/system/essay-agent.timer
   systemctl daemon-reload
   systemctl restart "$TIMER_NAME"
 }
@@ -451,7 +451,7 @@ uninstall_agent() {
   if [[ "$ans" != "yes" ]]; then warn "已取消卸载"; return; fi
   systemctl disable --now "$TIMER_NAME" >/dev/null 2>&1 || true
   systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || true
-  rm -f "/etc/systemd/system/arxiv-agent.service" "/etc/systemd/system/arxiv-agent.timer"
+  rm -f "/etc/systemd/system/essay-agent.service" "/etc/systemd/system/essay-agent.timer"
   systemctl daemon-reload || true
   rm -f /usr/local/bin/esag
   rm -rf "$INSTALL_DIR"

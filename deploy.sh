@@ -11,8 +11,8 @@ set -euo pipefail
 REPO_SSH_URL="git@github.com:wannaqueen66-create/essay-agent.git"
 REPO_HTTPS_URL="https://github.com/wannaqueen66-create/essay-agent.git"
 DEFAULT_BRANCH="main"
-INSTALL_DIR="/opt/arxiv-agent"
-SERVICE_USER="arxiv-agent"
+INSTALL_DIR="/opt/essay-agent"
+SERVICE_USER="essay-agent"
 ENV_FILE="$INSTALL_DIR/.env"
 
 RED='\033[0;31m'
@@ -119,7 +119,7 @@ else
     error "无法拉取仓库：$REPO_HTTPS_URL"
 fi
 
-if [[ ! -f "$TMP_SRC/arxiv_agent.py" || ! -f "$TMP_SRC/config.yaml" || ! -f "$TMP_SRC/requirements.txt" ]]; then
+if [[ ! -f "$TMP_SRC/essay_agent.py" || ! -f "$TMP_SRC/config.yaml" || ! -f "$TMP_SRC/requirements.txt" ]]; then
     error "拉取到的仓库内容不完整，缺少核心文件。"
 fi
 if [[ ! -f "$TMP_SRC/esag" ]]; then
@@ -371,28 +371,28 @@ ENVEOF
 mkdir -p "$INSTALL_DIR/output"
 chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
 chmod 600 "$ENV_FILE"
-chmod 644 "$INSTALL_DIR/config.yaml" "$INSTALL_DIR/arxiv_agent.py" "$INSTALL_DIR/requirements.txt" "$INSTALL_DIR/README.md" "$INSTALL_DIR/README.zh-CN.md" 2>/dev/null || true
+chmod 644 "$INSTALL_DIR/config.yaml" "$INSTALL_DIR/essay_agent.py" "$INSTALL_DIR/requirements.txt" "$INSTALL_DIR/README.md" "$INSTALL_DIR/README.zh-CN.md" 2>/dev/null || true
 chmod 755 "$INSTALL_DIR" "$INSTALL_DIR/output" 2>/dev/null || true
 
 info "安装 systemd 服务 ..."
-cp "$INSTALL_DIR/deploy/arxiv-agent.service" /etc/systemd/system/
-cp "$INSTALL_DIR/deploy/arxiv-agent.timer" /etc/systemd/system/
+cp "$INSTALL_DIR/deploy/essay-agent.service" /etc/systemd/system/
+cp "$INSTALL_DIR/deploy/essay-agent.timer" /etc/systemd/system/
 
 info "安装管理命令 esag ..."
 cp "$INSTALL_DIR/esag" /usr/local/bin/esag
 chmod 755 /usr/local/bin/esag
 
-if ! grep -q '^User=' /etc/systemd/system/arxiv-agent.service; then
-    sed -i "/^\[Service\]/a User=$SERVICE_USER" /etc/systemd/system/arxiv-agent.service
+if ! grep -q '^User=' /etc/systemd/system/essay-agent.service; then
+    sed -i "/^\[Service\]/a User=$SERVICE_USER" /etc/systemd/system/essay-agent.service
 fi
-sed -i "s|OnCalendar=.*|OnCalendar=*-*-* ${RUN_TIME}:00|" /etc/systemd/system/arxiv-agent.timer
+sed -i "s|OnCalendar=.*|OnCalendar=*-*-* ${RUN_TIME}:00|" /etc/systemd/system/essay-agent.timer
 
 systemctl daemon-reload
-systemctl enable arxiv-agent.timer >/dev/null
-systemctl restart arxiv-agent.timer
+systemctl enable essay-agent.timer >/dev/null
+systemctl restart essay-agent.timer
 
 step "5/5 验证与试运行"
-TIMER_STATUS="$(systemctl is-active arxiv-agent.timer 2>/dev/null || true)"
+TIMER_STATUS="$(systemctl is-active essay-agent.timer 2>/dev/null || true)"
 if [[ "$TIMER_STATUS" == "active" ]]; then
     info "定时器已激活"
 else
@@ -407,13 +407,13 @@ if confirm "部署完成！是否立即试运行一次？（约 2-5 分钟）" "
     else
         warn "配置文件当前对服务用户不可读：$INSTALL_DIR/config.yaml"
     fi
-    if sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$INSTALL_DIR/.venv/bin/python' arxiv_agent.py"; then
+    if sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$INSTALL_DIR/.venv/bin/python' essay_agent.py"; then
         info "试运行成功！"
         echo ""
         echo "  输出文件："
         ls -la "$INSTALL_DIR/output/" 2>/dev/null || true
     else
-        warn "试运行出错，请检查日志：journalctl -u arxiv-agent -n 200 --no-pager"
+        warn "试运行出错，请检查日志：journalctl -u essay-agent -n 200 --no-pager"
     fi
 fi
 
@@ -431,8 +431,8 @@ echo "  推荐后续操作："
 echo "    打开管理面板：sudo esag"
 echo ""
 echo "  仍可手动使用的命令："
-echo "    手动运行：  sudo -u $SERVICE_USER $INSTALL_DIR/.venv/bin/python $INSTALL_DIR/arxiv_agent.py"
-echo "    查看日志：  journalctl -u arxiv-agent -f"
-echo "    定时器状态：systemctl status arxiv-agent.timer"
-echo "    上次运行：  systemctl status arxiv-agent.service"
+echo "    手动运行：  sudo -u $SERVICE_USER $INSTALL_DIR/.venv/bin/python $INSTALL_DIR/essay_agent.py"
+echo "    查看日志：  journalctl -u essay-agent -f"
+echo "    定时器状态：systemctl status essay-agent.timer"
+echo "    上次运行：  systemctl status essay-agent.service"
 echo ""
