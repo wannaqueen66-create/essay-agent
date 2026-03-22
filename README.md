@@ -1,302 +1,487 @@
-# essay-agent
+# essay-agent / Essay Agent
 
-> Multi-source academic literature monitoring and AI-structured analysis tool for architecture, sports space, VR environment, and behavior trajectory research.
-> 面向建筑学、体育空间、VR 环境与行为轨迹研究的多源文献监测与 AI 结构化分析工具。
-
----
-
-## Table of Contents
-
-- [1. Project Overview](#1-project-overview)
-- [2. Features](#2-features)
-- [3. Supported Sources](#3-supported-sources)
-- [4. Target Journal Monitoring](#4-target-journal-monitoring)
-- [5. Project Structure](#5-project-structure)
-- [6. Quick Start](#6-quick-start)
-- [7. One-Click Deployment (VPS)](#7-one-click-deployment-vps)
-- [8. Environment Variables](#8-environment-variables)
-- [9. Configuration File](#9-configuration-file)
-- [10. Output Files](#10-output-files)
-- [11. Utility Scripts](#11-utility-scripts)
-- [12. Email Delivery](#12-email-delivery)
-- [13. Recommended Default Setup](#13-recommended-default-setup)
-- [14. Systemd Service](#14-systemd-service)
-- [15. License](#15-license)
+> A complete, newbie-friendly academic monitoring and AI analysis toolkit for architecture, sports space, VR environments, spatial behavior, and behavior trajectory research.  
+> 一个面向建筑学、体育空间、VR 环境、空间行为与行为轨迹研究的完整文献监测与 AI 结构化分析工具，强调**结构完整、信息充分、对新手友好**。
 
 ---
 
-## 1. Project Overview
+## Table of Contents / 目录
 
-**essay-agent** is a production-ready academic monitoring tool that fetches recent papers from multiple scholarly sources and target journals, analyzes them with an OpenAI-compatible model, and produces structured daily reports.
-
-It is designed for topics such as:
-
-- Architecture / built environment
-- Sports space / sports facilities
-- Virtual reality environments (VR + EEG + eye tracking)
-- Behavioral trajectory / spatial behavior
-- Environmental perception
-
-Core workflow:
-
-1. Fetch recent papers from 6 data sources + target journals
-2. Run AI-based structured analysis (Chinese summaries + 14 structured fields)
-3. Filter by relevance score
-4. Store history in SQLite with caching
-5. Generate Markdown / Excel / JSON reports
-6. Optionally send reports by email (Brevo SMTP)
-
----
-
-## 2. Features
-
-- **6 data sources** — arXiv, OpenAlex, Crossref, Semantic Scholar, Europe PMC, CORE
-- **Target journal monitoring** — directly track 16+ top journals via ISSN filtering
-- **AI structured analysis** — Chinese summary + research topic, IV/DV, methods, relevance score, and more
-- **SQLite caching** — content-hash based deduplication and analysis cache
-- **SQLite optimized** — WAL mode, indexes, batch commits for low-IOPS VPS
-- **Structured logging** — timestamps, levels, full exception tracebacks
-- **Diagnostic reports** — when 0 papers found, email/markdown shows full diagnostic chain with per-source status
-- **Rate limiting** — built-in delays between API calls to avoid 429 errors
-- **Pending pool** — supplements daily reports with recent qualifying papers
-- **Markdown / Excel / JSON** output
-- **Brevo SMTP** email delivery with attachments
-- **Systemd service + timer** — ready for production cron scheduling
-- **One-click deployment** — `deploy.sh` for Ubuntu/Debian VPS
-- **Memory-safe** — designed for 1CPU / 1GB RAM VPS (MemoryMax=768M)
+- [1. What This Project Is / 项目是什么](#1-what-this-project-is--项目是什么)
+- [2. What Problem It Solves / 解决什么问题](#2-what-problem-it-solves--解决什么问题)
+- [3. Core Features / 核心功能](#3-core-features--核心功能)
+- [4. Supported Sources / 支持的数据源](#4-supported-sources--支持的数据源)
+- [5. Target Journal Monitoring / 目标期刊监控](#5-target-journal-monitoring--目标期刊监控)
+- [6. Project Structure / 项目结构](#6-project-structure--项目结构)
+- [7. One-Command VPS Install / 一条命令部署到 VPS](#7-one-command-vps-install--一条命令部署到-vps)
+- [8. Manual Installation / 手动安装](#8-manual-installation--手动安装)
+- [9. Interactive Environment Configuration / 交互式环境配置](#9-interactive-environment-configuration--交互式环境配置)
+- [10. Configuration Reference / 配置说明](#10-configuration-reference--配置说明)
+- [11. How to Run / 如何运行](#11-how-to-run--如何运行)
+- [12. Output Files / 输出结果](#12-output-files--输出结果)
+- [13. Utility Scripts / 辅助脚本](#13-utility-scripts--辅助脚本)
+- [14. systemd Timer and Service / systemd 定时服务](#14-systemd-timer-and-service--systemd-定时服务)
+- [15. Suggested Beginner Setup / 新手建议配置](#15-suggested-beginner-setup--新手建议配置)
+- [16. FAQ / 常见问题](#16-faq--常见问题)
+- [17. Notes and Limitations / 注意事项与当前限制](#17-notes-and-limitations--注意事项与当前限制)
+- [18. Chinese Documentation / 中文文档](#18-chinese-documentation--中文文档)
+- [19. License / 许可证](#19-license--许可证)
 
 ---
 
-## 3. Supported Sources
+## 1. What This Project Is / 项目是什么
+
+**essay-agent** is a multi-source paper monitoring pipeline built for practical research work. It automatically collects recent papers, analyzes them with an OpenAI-compatible model, generates Chinese summaries plus structured research fields, stores results in SQLite, and outputs readable daily reports.
+
+**essay-agent** 是一个面向实际科研工作的多源文献监测流水线。它会自动抓取近期论文，调用 OpenAI 或兼容接口进行分析，生成中文摘要与结构化研究字段，将结果写入 SQLite，并输出适合日常阅读和汇报的日报文件。
+
+It is especially suitable for topics such as:
+
+- architecture / 建筑学
+- sports space / 体育空间
+- VR environments / VR 环境
+- spatial behavior / 空间行为
+- behavioral trajectory / 行为轨迹
+- environmental perception / 环境感知
+- VR + EEG / eye tracking related studies / VR + EEG / 眼动相关研究
+
+---
+
+## 2. What Problem It Solves / 解决什么问题
+
+### English
+
+If you work in interdisciplinary research, paper monitoring is often annoying for three reasons:
+
+1. papers are scattered across multiple sources;
+2. keyword search alone is noisy;
+3. even after finding papers, manual abstract reading is slow.
+
+This project solves that by turning paper monitoring into a repeatable workflow:
+
+- collect recent papers from multiple sources,
+- apply domain-focused filtering,
+- ask a model to produce structured Chinese analysis,
+- keep history in a database,
+- generate Markdown / Excel / JSON outputs,
+- optionally send reports by email.
+
+### 中文
+
+如果你做的是跨学科研究，文献监测通常会遇到三类问题：
+
+1. 论文分散在多个数据源里；
+2. 单纯靠关键词检索噪音很大；
+3. 即使抓到了论文，人工逐篇读摘要也很慢。
+
+这个项目的目标，就是把“每天找文献”变成一条可重复、可积累、可自动化的工作流：
+
+- 从多个数据源抓取近期论文；
+- 做领域定向过滤；
+- 用模型输出中文结构化分析；
+- 把历史结果存入数据库；
+- 自动生成 Markdown / Excel / JSON 报告；
+- 可选发送邮件日报。
+
+---
+
+## 3. Core Features / 核心功能
+
+### English
+
+- Multi-source literature retrieval
+- ISSN-based target journal monitoring
+- Chinese summary + structured analysis for each paper
+- Original English abstract preserved
+- SQLite cache and history database
+- Relevance threshold filtering
+- Pending pool for supplementing daily reports
+- Markdown / Excel / JSON output
+- Brevo SMTP email delivery
+- One-command interactive deployment for VPS
+- systemd timer for scheduled execution
+- low-resource VPS-friendly design
+
+### 中文
+
+- 多源文献抓取
+- 基于 ISSN 的目标期刊监控
+- 每篇论文自动生成中文摘要与结构化分析
+- 保留英文原始摘要
+- SQLite 缓存与历史数据库
+- 相关性阈值过滤
+- 待展示池补位机制
+- 输出 Markdown / Excel / JSON 日报
+- 支持 Brevo SMTP 邮件推送
+- 支持 VPS 一键交互式部署
+- 自带 systemd 定时运行方案
+- 针对低配 VPS 做了适配
+
+---
+
+## 4. Supported Sources / 支持的数据源
 
 | Source | Type | Auth Required | Notes |
-|--------|------|---------------|-------|
-| **arXiv** | Preprint | No | Category-specific queries (cs.HC, physics.soc-ph, etc.) |
-| **OpenAlex** | Aggregator | No | Broad academic coverage, inverted index abstracts |
-| **Crossref** | Metadata | No | DOI-based, journal articles |
-| **Semantic Scholar** | Aggregator | No | AI/NLP focus, rate-limited (1 req/sec) |
-| **Europe PMC** | Biomedical | No | VR + EEG/eye-tracking papers, neuroscience |
-| **CORE** | Open Access | Free API key | 300M+ documents, grey literature, conference papers |
+|---|---|---|---|
+| arXiv | Preprint | No | Supports category-based search |
+| OpenAlex | Aggregator | No | Broad academic coverage |
+| Crossref | Metadata | No | DOI / journal-heavy metadata |
+| Semantic Scholar | Aggregator | No | Good for AI / NLP / CS crossover |
+| Europe PMC | Biomedical | No | Useful for VR, EEG, perception papers |
+| CORE | Open Access Aggregator | Free API key optional | Massive OA coverage |
 
-Configure enabled sources in `config.yaml` → `sources`.
-
----
-
-## 4. Target Journal Monitoring
-
-In addition to keyword-based searching, essay-agent can directly monitor specific journals via OpenAlex ISSN filtering. This ensures you never miss papers from top journals in your field, regardless of keyword matching.
-
-Pre-configured journals (in `config.yaml` → `target_journals`):
-
-**Architecture & Built Environment:**
-- Building and Environment (0360-1323)
-- Environment and Behavior (0013-9165)
-- Journal of Environmental Psychology (0272-4944)
-- Architectural Science Review (0003-8628)
-- Indoor Air (1600-0668)
-
-**Sports Science & Sports Space:**
-- Journal of Sports Sciences (0264-0414)
-- International Review for the Sociology of Sport (1012-6902)
-- European Sport Management Quarterly (1618-4742)
-
-**VR / HCI / Perception:**
-- Virtual Reality (1359-4338)
-- Computers in Human Behavior (0747-5632)
-- International Journal of Human-Computer Studies (1071-5819)
-- Presence: Teleoperators and Virtual Environments (1054-7460)
-
-**Behavioral Trajectory / Urban Space:**
-- Transportation Research Part C (0968-090X)
-- Journal of Transport Geography (0966-6923)
-- Computers, Environment and Urban Systems (0198-9715)
-- Applied Geography (0143-6228)
-
-To add more journals, simply add entries with `name` and `issn` to the `target_journals` list. Find ISSNs at [OpenAlex Sources](https://openalex.org/sources) or the journal's official website.
+在 `config.yaml -> sources` 中可以控制启用哪些数据源。
 
 ---
 
-## 5. Project Structure
+## 5. Target Journal Monitoring / 目标期刊监控
+
+Besides keyword-based search, the project can directly monitor selected journals through ISSN filtering. This helps you catch important papers even if their titles do not fully match your generic search queries.
+
+除了关键词检索，这个项目还支持通过 ISSN 直接监控目标期刊。这样即使论文标题没有完整命中你的检索式，只要发表在目标期刊上，也仍然能被抓到。
+
+Pre-configured examples include journals from:
+
+- architecture and built environment
+- sports science and sports space
+- VR / HCI / perception
+- mobility / trajectory / urban space
+
+具体列表请查看 `config.yaml` 中的 `target_journals`。
+
+---
+
+## 6. Project Structure / 项目结构
 
 ```text
 essay-agent/
-├── arxiv_agent.py          # Main application
-├── config.yaml             # Configuration (queries, sources, journals)
-├── requirements.txt        # Pinned Python dependencies
-├── .env.example            # Environment variable template
-├── deploy.sh               # One-click deployment script
+├── arxiv_agent.py              # Main program / 主程序
+├── config.yaml                 # Search queries, source list, journal list / 配置文件
+├── requirements.txt            # Python dependencies / Python 依赖
+├── .env.example                # Environment variable template / 环境变量模板
+├── deploy.sh                   # Interactive deployment script / 交互式部署脚本
 ├── deploy/
-│   ├── arxiv-agent.service # systemd service unit
-│   └── arxiv-agent.timer   # systemd daily timer
-├── inspect_db.py           # Database inspection utility
-├── reset_reported.py       # Reset display/report status
-├── send_output_email.py    # Resend existing reports
-├── show_pending_pool.py    # View pending pool
-├── test_email.py           # Test SMTP configuration
-├── README.md
-├── README.zh-CN.md
+│   ├── arxiv-agent.service     # systemd service unit
+│   └── arxiv-agent.timer       # systemd timer unit
+├── inspect_db.py               # Database overview
+├── reset_reported.py           # Reset displayed/reported flags
+├── send_output_email.py        # Resend existing report files
+├── show_pending_pool.py        # Show pending pool
+├── test_email.py               # Test SMTP delivery
+├── README.md                   # Bilingual README / 中英双语 README
+├── README.zh-CN.md             # Chinese-only documentation / 独立中文文档
 └── LICENSE
 ```
 
-Runtime-generated:
+Runtime-generated files:
 
 ```text
-papers.db                   # SQLite database (WAL mode)
-output/                     # Daily reports
+papers.db
+output/
 ```
 
 ---
 
-## 6. Quick Start
+## 7. One-Command VPS Install / 一条命令部署到 VPS
+
+If your VPS already has `curl` and `sudo`, you can deploy the project with **one bash command**.
+
+如果你的 VPS 上已经有 `curl` 和 `sudo`，你可以直接用**一条 bash 命令**部署这个项目。
+
+### Recommended one-command install / 推荐一键安装命令
 
 ```bash
-# 1. Install system dependencies
-apt update && apt install -y python3 python3-pip python3-venv
+curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
+```
 
-# 2. Clone the repository
+### What it does / 这条命令会做什么
+
+The installer will:
+
+1. install system dependencies;
+2. pull the latest repository code;
+3. launch an **interactive configuration flow**;
+4. ask you for OpenAI API settings;
+5. optionally ask you for email settings;
+6. ask for runtime parameters such as `DAYS_BACK` and `MIN_RELEVANCE_SCORE`;
+7. create the `.env` file automatically;
+8. install a Python virtual environment;
+9. install systemd service and timer;
+10. optionally run a first test execution.
+
+部署脚本会自动完成：
+
+1. 安装系统依赖；
+2. 拉取最新仓库代码；
+3. 启动**交互式配置流程**；
+4. 询问你的 OpenAI API 配置；
+5. 可选询问邮件推送配置；
+6. 询问运行参数（如 `DAYS_BACK`、`MIN_RELEVANCE_SCORE`）；
+7. 自动生成 `.env`；
+8. 创建 Python 虚拟环境；
+9. 安装 systemd 服务与定时器；
+10. 可选立即试运行一次。
+
+So the expected experience is:
+
+> paste one command into the VPS → finish installation → enter interactive env configuration → deployment completes.
+
+也就是说，预期体验就是：
+
+> 把一条命令复制到 VPS 执行 → 自动安装 → 进入交互式 env 配置界面 → 部署完成。
+
+---
+
+## 8. Manual Installation / 手动安装
+
+If you prefer manual setup, use the following steps.
+
+如果你不想用一键脚本，也可以手动安装。
+
+### 8.1 Install system packages / 安装系统依赖
+
+```bash
+apt update && apt install -y python3 python3-pip python3-venv git
+```
+
+### 8.2 Clone repository / 克隆仓库
+
+```bash
 git clone git@github.com:wannaqueen66-create/essay-agent.git
 cd essay-agent
+```
 
-# 3. Create virtual environment
+### 8.3 Create virtual environment / 创建虚拟环境
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
+```
 
-# 4. Install Python dependencies
+### 8.4 Install dependencies / 安装依赖
+
+```bash
 pip install -r requirements.txt
+```
 
-# 5. Create and edit .env
+### 8.5 Create `.env` / 创建 `.env`
+
+```bash
 cp .env.example .env
-# Edit .env: set OPENAI_API_KEY, OPENAI_MODEL, etc.
+nano .env
+```
 
-# 6. Run
+### 8.6 Run the program / 运行程序
+
+```bash
 python arxiv_agent.py
 ```
 
 ---
 
-## 7. One-Click Deployment (VPS)
+## 9. Interactive Environment Configuration / 交互式环境配置
 
-For production deployment on Ubuntu/Debian VPS (1CPU/1GB RAM or above):
+If you use the one-command installer, the script will ask you for:
 
-```bash
-sudo bash deploy.sh
-```
+- `OPENAI_API_KEY`
+- `OPENAI_BASE_URL` (optional)
+- `OPENAI_MODEL`
+- whether email should be enabled
+- SMTP settings if enabled
+- `DAYS_BACK`
+- `MAX_RESULTS_PER_QUERY`
+- `MIN_RELEVANCE_SCORE`
+- `REPORT_TOP_N`
+- `EMAIL_TOP_N`
+- `PENDING_POOL_DAYS`
+- optional `CORE_API_KEY`
+- daily run time for the timer
 
-This script will:
-1. Install system dependencies (python3, pip, venv)
-2. Create a dedicated service user (`arxiv-agent`)
-3. Deploy the application to `/opt/arxiv-agent`
-4. Create Python virtual environment and install dependencies
-5. Set up `.env` from template (you need to edit it)
-6. Install systemd service and daily timer (runs at 07:00)
-7. Set file permissions (`.env` is chmod 600)
+如果你使用一键安装脚本，脚本会交互式询问你：
 
-After deployment:
+- `OPENAI_API_KEY`
+- `OPENAI_BASE_URL`（可选）
+- `OPENAI_MODEL`
+- 是否启用邮件推送
+- 若启用邮件，则继续询问 SMTP 配置
+- `DAYS_BACK`
+- `MAX_RESULTS_PER_QUERY`
+- `MIN_RELEVANCE_SCORE`
+- `REPORT_TOP_N`
+- `EMAIL_TOP_N`
+- `PENDING_POOL_DAYS`
+- 可选的 `CORE_API_KEY`
+- 每日定时运行时间
 
-```bash
-# Edit configuration
-sudo nano /opt/arxiv-agent/.env
+This means you do **not** need to manually write the `.env` file during deployment unless you want to adjust settings later.
 
-# Manual run
-sudo -u arxiv-agent /opt/arxiv-agent/.venv/bin/python /opt/arxiv-agent/arxiv_agent.py
-
-# View logs
-journalctl -u arxiv-agent -f
-
-# Timer status
-systemctl status arxiv-agent.timer
-```
+这意味着在部署过程中，你**不需要自己手写 `.env`**，除非后面想手动调整参数。
 
 ---
 
-## 8. Environment Variables
+## 10. Configuration Reference / 配置说明
 
-| Variable | Default | Description |
+### 10.1 `.env` runtime parameters / `.env` 运行时参数
+
+| Variable | Description | 说明 |
 |---|---|---|
-| `OPENAI_API_KEY` | *(required)* | OpenAI or compatible API key |
-| `OPENAI_BASE_URL` | *(empty)* | Optional compatible API base URL |
-| `OPENAI_MODEL` | `gpt-4.1-mini` | Model name |
-| `DAYS_BACK` | `2` | Fetch papers from recent N days |
-| `MAX_RESULTS_PER_QUERY` | `30` | Max papers per query per source |
-| `MIN_RELEVANCE_SCORE` | `70` | Minimum relevance threshold (0-100) |
-| `FORCE_REFRESH` | `false` | Ignore cache, re-analyze all |
-| `CORE_API_KEY` | *(empty)* | Free API key for CORE source |
-| `EMAIL_ENABLED` | `false` | Enable email delivery |
-| `EMAIL_SMTP_HOST` | `smtp-relay.brevo.com` | SMTP host |
-| `EMAIL_SMTP_PORT` | `587` | SMTP port |
-| `EMAIL_USERNAME` | | SMTP username |
-| `EMAIL_PASSWORD` | | SMTP password |
-| `EMAIL_FROM` | | Sender email |
-| `EMAIL_TO` | | Recipient(s), comma-separated |
-| `EMAIL_USE_TLS` | `true` | Enable TLS |
-| `REPORT_TOP_N` | `10` | Top N in Markdown report |
-| `EMAIL_TOP_N` | `5` | Top N in email body |
-| `PENDING_POOL_DAYS` | `7` | Pending pool time window |
-| `EMPTY_REPORT_EMAIL` | `true` | Send email even when empty (with diagnostics) |
+| `OPENAI_API_KEY` | OpenAI or compatible API key | OpenAI 或兼容接口 API Key |
+| `OPENAI_BASE_URL` | Optional compatible API base URL | 可选兼容接口 Base URL |
+| `OPENAI_MODEL` | Model name | 模型名称 |
+| `DAYS_BACK` | How many recent days to fetch | 抓取最近多少天论文 |
+| `MAX_RESULTS_PER_QUERY` | Max fetch size per query per source | 每个 query 每个源最大抓取数量 |
+| `MIN_RELEVANCE_SCORE` | Minimum score threshold | 最低相关性阈值 |
+| `FORCE_REFRESH` | Ignore cache and re-run analysis | 忽略缓存强制重跑 |
+| `CORE_API_KEY` | Optional CORE API key | 可选 CORE API Key |
+| `EMAIL_ENABLED` | Enable SMTP delivery | 是否启用 SMTP 推送 |
+| `EMAIL_SMTP_HOST` | SMTP host | SMTP 主机 |
+| `EMAIL_SMTP_PORT` | SMTP port | SMTP 端口 |
+| `EMAIL_USERNAME` | SMTP username | SMTP 用户名 |
+| `EMAIL_PASSWORD` | SMTP password | SMTP 密码 |
+| `EMAIL_FROM` | Sender email | 发件邮箱 |
+| `EMAIL_TO` | Recipient list | 收件人列表 |
+| `EMAIL_USE_TLS` | TLS switch | TLS 开关 |
+| `REPORT_TOP_N` | Number of top papers in Markdown | Markdown 展示前 N 条 |
+| `EMAIL_TOP_N` | Number of top papers in email body | 邮件正文展示前 N 条 |
+| `PENDING_POOL_DAYS` | Pending pool window | 待展示池窗口天数 |
+| `EMPTY_REPORT_EMAIL` | Send email even when empty | 为空时是否也发邮件 |
+
+### 10.2 `config.yaml` project parameters / `config.yaml` 项目参数
+
+| Section | Description | 说明 |
+|---|---|---|
+| `queries` | arXiv-specific search expressions | arXiv 专用检索式 |
+| `generic_queries` | generic search queries for other sources | 其他来源的通用检索式 |
+| `target_journals` | ISSN-based journal monitoring list | 基于 ISSN 的期刊监控列表 |
+| `sources` | enabled sources | 启用的数据源 |
+| `exclude_keywords` | noise filtering keywords | 排噪关键词 |
+| `must_have_keywords` | optional must-have terms | 必须命中关键词 |
+| `db_path` | SQLite path | SQLite 数据库路径 |
+| `analysis_retries` | retry count | 分析重试次数 |
+| `retry_delay_seconds` | retry interval | 重试间隔 |
 
 ---
 
-## 9. Configuration File
+## 11. How to Run / 如何运行
 
-Main configuration is in `config.yaml`:
+### Manual one-time run / 手动运行一次
 
-| Section | Description |
-|---------|-------------|
-| `queries` | arXiv-specific query expressions (with `cat:` syntax) |
-| `generic_queries` | Natural language queries for OpenAlex/Crossref/Semantic Scholar/Europe PMC |
-| `target_journals` | ISSN-based journal monitoring list |
-| `sources` | Enabled data sources |
-| `exclude_keywords` | Keywords to filter out noise |
-| `must_have_keywords` | Optional must-match keywords |
-| `db_path` | SQLite database path |
-| `analysis_retries` | LLM retry count |
-| `retry_delay_seconds` | Retry interval (exponential backoff) |
+```bash
+python arxiv_agent.py
+```
+
+### If deployed through `deploy.sh` / 如果通过 `deploy.sh` 部署
+
+```bash
+sudo -u arxiv-agent /opt/arxiv-agent/.venv/bin/python /opt/arxiv-agent/arxiv_agent.py
+```
+
+### Follow logs / 查看日志
+
+```bash
+journalctl -u arxiv-agent -f
+```
 
 ---
 
-## 10. Output Files
+## 12. Output Files / 输出结果
 
-After each run:
+Each successful run generates files like:
 
 ```text
-output/arxiv_daily_YYYY-MM-DD.xlsx       # Sortable/filterable table
-output/arxiv_daily_YYYY-MM-DD.md         # Readable report with TOP N
-output/arxiv_daily_YYYY-MM-DD_stats.json # Runtime statistics + per-source status
+output/arxiv_daily_YYYY-MM-DD.xlsx
+output/arxiv_daily_YYYY-MM-DD.md
+output/arxiv_daily_YYYY-MM-DD_stats.json
 ```
 
-When 0 papers are found, the Markdown and email reports include a full diagnostic chain showing fetch counts, filter breakdown, per-source status, and suggested remediation.
+### Excel / Excel 文件
+Used for:
+- sorting
+- filtering
+- manual review
+- later literature synthesis
+
+### Markdown / Markdown 文件
+Used for:
+- quick reading
+- daily briefing
+- structured inspection of top papers
+
+### stats.json / stats.json 文件
+Used for:
+- runtime statistics
+- source health checks
+- debugging fetch / analysis behavior
+
+When 0 papers are kept, the report still explains:
+- how many were fetched,
+- how many were filtered,
+- which source may have failed,
+- and what to check next.
+
+当最终收录为 0 篇时，报告仍会包含：
+- 抓取了多少；
+- 被哪些环节过滤掉了多少；
+- 哪个数据源可能有问题；
+- 下一步建议检查什么。
 
 ---
 
-## 11. Utility Scripts
+## 13. Utility Scripts / 辅助脚本
 
 ```bash
-python inspect_db.py                          # Database overview
-python show_pending_pool.py                   # View pending pool
-python reset_reported.py all|displayed|both   # Reset tracking flags
-python test_email.py                          # Test SMTP connection
-python send_output_email.py --mark-db         # Resend today's report
-python send_output_email.py --date 2026-03-08 # Resend historical report
+python inspect_db.py
+python show_pending_pool.py
+python reset_reported.py all
+python reset_reported.py displayed
+python reset_reported.py both
+python test_email.py
+python send_output_email.py --mark-db
+python send_output_email.py --date 2026-03-08 --mark-db
+```
+
+### What they are for / 这些脚本是干什么的
+
+- `inspect_db.py` — inspect current DB status  
+  查看数据库总体状态
+- `show_pending_pool.py` — inspect the pending pool  
+  查看待展示池
+- `reset_reported.py` — reset display/report tracking flags  
+  重置展示 / 上报状态
+- `test_email.py` — test SMTP sending only  
+  单独测试邮箱发送
+- `send_output_email.py` — resend output files without rerunning fetch/analyze  
+  不重跑主流程，仅重发输出文件邮件
+
+---
+
+## 14. systemd Timer and Service / systemd 定时服务
+
+The repository includes ready-made systemd files:
+
+- `deploy/arxiv-agent.service`
+- `deploy/arxiv-agent.timer`
+
+### Default behavior / 默认行为
+
+- timer triggers once per day
+- service runs as `oneshot`
+- resource limits are included for smaller VPS machines
+
+### Common commands / 常用命令
+
+```bash
+systemctl status arxiv-agent.timer
+systemctl status arxiv-agent.service
+journalctl -u arxiv-agent -n 200 --no-pager
+journalctl -u arxiv-agent -f
 ```
 
 ---
 
-## 12. Email Delivery
+## 15. Suggested Beginner Setup / 新手建议配置
 
-Set `EMAIL_ENABLED=true` in `.env` and configure SMTP credentials.
-
-The email includes:
-- Summary in body (TOP N papers with scores and links)
-- Markdown attachment
-- Excel attachment (if non-empty)
-- JSON stats attachment
-- **Full diagnostic info when 0 papers found** (per-source status, filter breakdown, suggested causes)
-
----
-
-## 13. Recommended Default Setup
-
-For first-time setup, use conservative parameters:
+If you are running this for the first time, start small:
 
 ```env
 OPENAI_MODEL=gpt-4.1-mini
@@ -307,34 +492,98 @@ FORCE_REFRESH=false
 EMAIL_ENABLED=false
 ```
 
-Gradually increase `DAYS_BACK` and `MAX_RESULTS_PER_QUERY` after verifying everything works.
+Why this is recommended:
+
+- lower API cost
+- easier debugging
+- faster first run
+- less noise in results
+
+推荐原因：
+
+- API 成本更低
+- 更容易排查问题
+- 第一次运行更快
+- 结果噪音更少
 
 ---
 
-## 14. Systemd Service
+## 16. FAQ / 常见问题
 
-The project includes ready-to-use systemd files in `deploy/`:
+### Q1. `ModuleNotFoundError` when running / 运行时报缺包错误
 
-- `arxiv-agent.service` — oneshot service with memory/CPU limits
-  - `MemoryMax=768M` (protects 1GB VPS)
-  - `CPUQuota=80%` (prevents monopolizing single core)
-  - `TimeoutStartSec=600` (10-minute kill switch)
-- `arxiv-agent.timer` — daily trigger at 07:00 with `Persistent=true`
-
-Install manually:
+Install dependencies again:
 
 ```bash
-sudo cp deploy/arxiv-agent.service deploy/arxiv-agent.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now arxiv-agent.timer
+pip install -r requirements.txt
 ```
 
-Or use `sudo bash deploy.sh` for automatic setup.
+### Q2. No papers were found / 没抓到论文
+
+Check:
+
+- `DAYS_BACK` too small?
+- `MIN_RELEVANCE_SCORE` too high?
+- a source temporarily unavailable?
+- your query too narrow?
+
+### Q3. Email failed / 邮件发送失败
+
+Check:
+
+- SMTP username/password
+- sender address
+- receiver address
+- whether outbound SMTP is blocked on the VPS
+
+### Q4. I want to deploy with one command and configure interactively / 我想一条命令部署并进入交互式配置
+
+Use:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
+```
+
+That is the intended deployment flow.
 
 ---
 
-## 15. License
+## 17. Notes and Limitations / 注意事项与当前限制
+
+This project is already useful and complete enough for daily research monitoring, but it is still closer to a **practical research tool** than a fully modular enterprise-grade system.
+
+这个项目已经足够用于日常科研监测，但它更接近一个**实用型科研工具**，而不是完全模块化、企业级工程项目。
+
+Current limitations include:
+
+- main logic still concentrated in one Python file;
+- not all dependency versions are fully pinned;
+- engineering structure can still be improved;
+- best suited for personal or small-team research workflows.
+
+当前限制包括：
+
+- 主逻辑仍主要集中在一个 Python 文件里；
+- 依赖版本锁定还可以继续加强；
+- 工程结构仍有整理空间；
+- 更适合个人或小团队科研工作流。
+
+---
+
+## 18. Chinese Documentation / 中文文档
+
+For a standalone Chinese document, see:
+
+- [README.zh-CN.md](./README.zh-CN.md)
+
+如果你只想看纯中文说明，请直接阅读：
+
+- [README.zh-CN.md](./README.zh-CN.md)
+
+---
+
+## 19. License / 许可证
 
 This repository uses the existing `LICENSE` file.
 
-For Chinese documentation, see: [README.zh-CN.md](./README.zh-CN.md)
+本仓库沿用现有 `LICENSE` 文件。
