@@ -236,13 +236,20 @@ show_dashboard() {
   echo "[数据源与期刊]"
   echo "  启用数据源数量  : ${source_count:-0}"
   echo "  目标期刊数量    : ${journal_count:-0}"
+  local source_list
+  source_list="$(read_sources | paste -sd ', ' -)"
+  if [[ -n "$source_list" ]]; then
+    echo "  启用数据源名单  : $source_list"
+  else
+    echo "  启用数据源名单  : （未检测到）"
+  fi
   echo ""
   echo "[最近输出文件]"
   outputs="$(recent_outputs)"
   if [[ -n "$outputs" ]]; then
     echo "$outputs" | sed 's/^/  /'
   else
-    echo "  暂无输出文件"
+    echo "  暂无输出文件（可能尚未运行，或 output 目录为空）"
   fi
   echo ""
 }
