@@ -308,6 +308,8 @@ curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/mai
 
 - 如果看到 `[默认值]`，直接回车 = 使用该默认值；
 - 如果看到 `[Y/n]` 或 `[y/N]`，直接回车 = 使用括号里给出的默认选择；
+- 邮件推送默认关闭，直接回车即可跳过；
+- CORE API 默认不配置，直接回车即可跳过；
 - 只有没有默认值的字段，才需要你明确手动输入。
 
 ### 脚本会自动做什么

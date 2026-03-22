@@ -276,7 +276,9 @@ The installer will:
 More concretely, during setup:
 
 - if you see `[default]`, pressing Enter means **use that default value**;
-- if you see `[Y/n]` or `[y/N]`, pressing Enter means **use the shown default choice**.
+- if you see `[Y/n]` or `[y/N]`, pressing Enter means **use the shown default choice**;
+- email delivery is optional and defaults to **disabled**;
+- CORE API is optional and defaults to **not configured**.
 
 部署脚本会自动完成：
 

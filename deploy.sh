@@ -93,6 +93,8 @@ echo "  交互说明："
 echo "  - 看到 [默认值] 的选项时，直接回车 = 使用默认值"
 echo "  - y/n 题如果有 [Y/n] 或 [y/N]，直接回车 = 使用括号里的默认选项"
 echo "  - 没有默认值的字段，需要你手动输入"
+echo "  - 邮件推送默认关闭：直接回车 = 不启用邮件"
+echo "  - CORE API 默认不配置：直接回车 = 跳过 CORE"
 echo ""
 
 if ! confirm "是否继续部署？"; then
@@ -219,6 +221,7 @@ fi
 
 echo ""
 echo "  邮件推送是可选的；如果现在不配，后面也可以手动修改 .env。"
+echo "  这里默认是：不启用邮件。直接回车即可跳过。"
 echo ""
 EMAIL_ENABLED="false"
 EMAIL_SMTP_HOST="smtp-relay.brevo.com"
@@ -250,6 +253,8 @@ ask "邮件正文展示前 N 条（EMAIL_TOP_N）" "5" EMAIL_TOP_N
 ask "待展示池窗口天数（PENDING_POOL_DAYS）" "7" PENDING_POOL_DAYS
 
 CORE_API_KEY=""
+echo ""
+echo "  CORE API Key 是可选的。默认是：不配置，直接回车即可跳过。"
 if confirm "是否配置 CORE API Key？" "n"; then
     ask "CORE API Key" "" CORE_API_KEY
 fi
@@ -264,12 +269,23 @@ echo "  仓库：$REPO_HTTPS_URL"
 echo "  分支：$DEFAULT_BRANCH"
 echo "  模型：$OPENAI_MODEL"
 echo "  API Base URL：${OPENAI_BASE_URL:-（OpenAI 官方）}"
-echo "  邮件推送：$EMAIL_ENABLED"
 if [[ "$EMAIL_ENABLED" == "true" ]]; then
+    echo "  邮件推送：开启"
     echo "  收件人：$EMAIL_TO"
+else
+    echo "  邮件推送：关闭（默认）"
+fi
+if [[ -n "$CORE_API_KEY" ]]; then
+    echo "  CORE API：已配置"
+else
+    echo "  CORE API：未配置（默认）"
 fi
 echo "  抓取天数：$DAYS_BACK"
+echo "  每个 query 每个源最大抓取数：$MAX_RESULTS_PER_QUERY"
 echo "  相关性阈值：$MIN_RELEVANCE_SCORE"
+echo "  Markdown 展示前 N 条：$REPORT_TOP_N"
+echo "  邮件正文前 N 条：$EMAIL_TOP_N"
+echo "  待展示池窗口天数：$PENDING_POOL_DAYS"
 echo "  定时运行：每天 $RUN_TIME"
 echo ""
 
