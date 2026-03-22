@@ -500,8 +500,18 @@ sudo esag
 sudo esag
 ```
 
-With `esag`, you can interactively:
+With `esag`, you now get a more panel-like terminal experience with:
 
+- a status homepage,
+- submenus for core settings,
+- submenus for email settings,
+- submenus for sources / CORE,
+- submenus for logs and diagnostics,
+- a maintenance section for run / upgrade / uninstall.
+
+In practice, `esag` can interactively:
+
+- show a dashboard-like overview,
 - run the program manually,
 - modify core settings directly from the menu (model, days, max results, score threshold, report sizes, timer time),
 - modify email settings directly from the menu,

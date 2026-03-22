@@ -9,6 +9,7 @@ ENV_FILE="$INSTALL_DIR/.env"
 CONFIG_FILE="$INSTALL_DIR/config.yaml"
 VENV_PY="$INSTALL_DIR/.venv/bin/python"
 DEPLOY_SCRIPT="$INSTALL_DIR/deploy.sh"
+OUTPUT_DIR="$INSTALL_DIR/output"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -24,7 +25,7 @@ step()  { echo -e "\n${CYAN}${BOLD}>>> $*${NC}"; }
 
 require_root() {
   if [[ ${EUID} -ne 0 ]]; then
-    error "请使用 sudo 运行 esag"
+    error "请使用 root 运行 esag（普通用户请加 sudo）"
   fi
 }
 
@@ -97,42 +98,86 @@ confirm() {
   [[ "$yn" =~ ^[Yy]$ ]]
 }
 
+service_status() {
+  systemctl is-active "$SERVICE_NAME" 2>/dev/null || true
+}
+
+timer_status() {
+  systemctl is-active "$TIMER_NAME" 2>/dev/null || true
+}
+
+current_timer_time() {
+  systemctl cat "$TIMER_NAME" 2>/dev/null | awk -F'=' '/OnCalendar=/{print $2}' | tail -n1 | sed 's/.* //; s/:00$//' || true
+}
+
+last_run_time() {
+  systemctl show "$SERVICE_NAME" -p ExecMainStartTimestamp --value 2>/dev/null || true
+}
+
+last_run_result() {
+  systemctl show "$SERVICE_NAME" -p Result --value 2>/dev/null || true
+}
+
+recent_outputs() {
+  if [[ ! -d "$OUTPUT_DIR" ]]; then
+    return 0
+  fi
+  find "$OUTPUT_DIR" -maxdepth 1 -type f -printf '%TY-%Tm-%Td %TH:%TM %f\n' 2>/dev/null | sort -r | head -n 5 || true
+}
+
 show_header() {
   clear || true
   echo -e "${BOLD}==========================================${NC}"
-  echo -e "${BOLD} essay-agent 管理面板 (esag)${NC}"
+  echo -e "${BOLD} essay-agent 终端控制台 (esag)${NC}"
   echo -e "${BOLD}==========================================${NC}"
   echo "安装目录: $INSTALL_DIR"
   echo ""
 }
 
-show_status() {
+show_dashboard() {
   require_install
-  local service_status timer_status last_run_hint
-  service_status="$(systemctl is-active "$SERVICE_NAME" 2>/dev/null || true)"
-  timer_status="$(systemctl is-active "$TIMER_NAME" 2>/dev/null || true)"
-  echo "服务状态: ${service_status:-unknown}"
-  echo "定时器状态: ${timer_status:-unknown}"
-  echo "配置文件: $ENV_FILE"
+  local s t last_start last_result run_time
+  s="$(service_status)"
+  t="$(timer_status)"
+  last_start="$(last_run_time)"
+  last_result="$(last_run_result)"
+  run_time="$(current_timer_time)"
+  run_time="${run_time:-07:00}"
+
+  echo "[运行状态]"
+  echo "  服务状态: ${s:-unknown}"
+  echo "  定时器状态: ${t:-unknown}"
+  echo "  每日运行时间: $run_time"
+  echo "  上次运行时间: ${last_start:-unknown}"
+  echo "  上次运行结果: ${last_result:-unknown}"
   echo ""
-  echo "当前关键配置："
-  echo "  OPENAI_MODEL=$(read_env_value OPENAI_MODEL)"
-  echo "  DAYS_BACK=$(read_env_value DAYS_BACK)"
-  echo "  MAX_RESULTS_PER_QUERY=$(read_env_value MAX_RESULTS_PER_QUERY)"
-  echo "  MIN_RELEVANCE_SCORE=$(read_env_value MIN_RELEVANCE_SCORE)"
-  echo "  REPORT_TOP_N=$(read_env_value REPORT_TOP_N)"
-  echo "  EMAIL_TOP_N=$(read_env_value EMAIL_TOP_N)"
-  echo "  PENDING_POOL_DAYS=$(read_env_value PENDING_POOL_DAYS)"
+  echo "[当前配置摘要]"
+  echo "  模型: $(read_env_value OPENAI_MODEL)"
+  echo "  抓取天数: $(read_env_value DAYS_BACK)"
+  echo "  每路抓取上限: $(read_env_value MAX_RESULTS_PER_QUERY)"
+  echo "  相关性阈值: $(read_env_value MIN_RELEVANCE_SCORE)"
+  echo "  Markdown 展示前 N 条: $(read_env_value REPORT_TOP_N)"
+  echo "  邮件正文前 N 条: $(read_env_value EMAIL_TOP_N)"
+  echo "  待展示池窗口天数: $(read_env_value PENDING_POOL_DAYS)"
   if [[ "$(read_env_value EMAIL_ENABLED)" == "true" ]]; then
-    echo "  EMAIL_ENABLED=true"
-    echo "  EMAIL_TO=$(read_env_value EMAIL_TO)"
+    echo "  邮件推送: 开启"
+    echo "  收件人: $(read_env_value EMAIL_TO)"
   else
-    echo "  EMAIL_ENABLED=false"
+    echo "  邮件推送: 关闭"
   fi
   if [[ -n "$(read_env_value CORE_API_KEY)" ]]; then
-    echo "  CORE_API_KEY=已配置"
+    echo "  CORE API: 已配置"
   else
-    echo "  CORE_API_KEY=未配置"
+    echo "  CORE API: 未配置"
+  fi
+  echo ""
+  echo "[最近输出文件]"
+  local outputs
+  outputs="$(recent_outputs)"
+  if [[ -n "$outputs" ]]; then
+    echo "$outputs" | sed 's/^/  /'
+  else
+    echo "  暂无输出文件"
   fi
   echo ""
 }
@@ -173,6 +218,16 @@ test_email() {
   sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' test_email.py"
 }
 
+open_env_editor() {
+  require_install
+  ${EDITOR:-nano} "$ENV_FILE"
+}
+
+open_config_editor() {
+  require_install
+  ${EDITOR:-nano} "$CONFIG_FILE"
+}
+
 apply_timer_time() {
   local run_time="$1"
   sed -i "s|OnCalendar=.*|OnCalendar=*-*-* ${run_time}:00|" /etc/systemd/system/arxiv-agent.timer
@@ -191,7 +246,7 @@ edit_core_settings() {
   current_report="$(read_env_value REPORT_TOP_N)"
   current_email_top="$(read_env_value EMAIL_TOP_N)"
   current_pending="$(read_env_value PENDING_POOL_DAYS)"
-  current_time="$(systemctl cat "$TIMER_NAME" 2>/dev/null | awk -F'=' '/OnCalendar=/{print $2}' | tail -n1 | sed 's/.* //; s/:00$//')"
+  current_time="$(current_timer_time)"
   current_time="${current_time:-07:00}"
 
   ask "模型名称" "$current_model" new_model
@@ -226,8 +281,21 @@ edit_email_settings() {
   to="$(read_env_value EMAIL_TO)"
   tls="$(read_env_value EMAIL_USE_TLS)"
 
-  if confirm "是否启用邮件推送？" "${enabled:-n}"; then
-    enabled="true"
+  if [[ "$enabled" == "true" ]]; then
+    if confirm "是否继续启用邮件推送？" "y"; then
+      enabled="true"
+    else
+      enabled="false"
+    fi
+  else
+    if confirm "是否启用邮件推送？" "n"; then
+      enabled="true"
+    else
+      enabled="false"
+    fi
+  fi
+
+  if [[ "$enabled" == "true" ]]; then
     ask "SMTP 主机" "${host:-smtp-relay.brevo.com}" host
     ask "SMTP 端口" "${port:-587}" port
     ask "SMTP 用户名" "$username" username
@@ -273,7 +341,7 @@ edit_source_settings() {
   fi
   echo ""
   if confirm "是否打开 config.yaml 继续编辑更复杂的数据源配置？" "n"; then
-    ${EDITOR:-nano} "$CONFIG_FILE"
+    open_config_editor
   fi
 }
 
@@ -312,39 +380,150 @@ uninstall_agent() {
   exit 0
 }
 
-menu_loop() {
-  require_root
+core_settings_menu() {
   while true; do
     show_header
-    show_status
+    echo "[核心配置菜单]"
+    echo "  当前模型: $(read_env_value OPENAI_MODEL)"
+    echo "  DAYS_BACK: $(read_env_value DAYS_BACK)"
+    echo "  MAX_RESULTS_PER_QUERY: $(read_env_value MAX_RESULTS_PER_QUERY)"
+    echo "  MIN_RELEVANCE_SCORE: $(read_env_value MIN_RELEVANCE_SCORE)"
+    echo "  RUN_TIME: $(current_timer_time)"
+    echo ""
+    cat <<'EOF'
+[1] 交互式修改核心配置
+[2] 直接编辑 .env
+[3] 返回主菜单
+EOF
+    echo ""
+    read -r -p "请选择操作: " choice < /dev/tty || true
+    case "$choice" in
+      1) edit_core_settings; pause ;;
+      2) open_env_editor; pause ;;
+      3) return ;;
+      *) warn "无效选择"; pause ;;
+    esac
+  done
+}
+
+email_settings_menu() {
+  while true; do
+    show_header
+    echo "[邮件配置菜单]"
+    echo "  EMAIL_ENABLED: $(read_env_value EMAIL_ENABLED)"
+    echo "  EMAIL_TO: $(read_env_value EMAIL_TO)"
+    echo ""
+    cat <<'EOF'
+[1] 交互式修改邮件配置
+[2] 测试邮箱
+[3] 返回主菜单
+EOF
+    echo ""
+    read -r -p "请选择操作: " choice < /dev/tty || true
+    case "$choice" in
+      1) edit_email_settings; pause ;;
+      2) test_email; pause ;;
+      3) return ;;
+      *) warn "无效选择"; pause ;;
+    esac
+  done
+}
+
+sources_menu() {
+  while true; do
+    show_header
+    echo "[数据源与 CORE 菜单]"
+    if [[ -n "$(read_env_value CORE_API_KEY)" ]]; then
+      echo "  CORE API: 已配置"
+    else
+      echo "  CORE API: 未配置"
+    fi
+    echo ""
+    cat <<'EOF'
+[1] 配置 / 更新 CORE API
+[2] 编辑 config.yaml
+[3] 查看待展示池
+[4] 返回主菜单
+EOF
+    echo ""
+    read -r -p "请选择操作: " choice < /dev/tty || true
+    case "$choice" in
+      1) edit_source_settings; pause ;;
+      2) open_config_editor; pause ;;
+      3) show_pending; pause ;;
+      4) return ;;
+      *) warn "无效选择"; pause ;;
+    esac
+  done
+}
+
+logs_menu() {
+  while true; do
+    show_header
+    echo "[日志与诊断菜单]"
+    cat <<'EOF'
+[1] 查看最近日志
+[2] 实时跟踪日志
+[3] 查看数据库总览
+[4] 返回主菜单
+EOF
+    echo ""
+    read -r -p "请选择操作: " choice < /dev/tty || true
+    case "$choice" in
+      1) view_logs; pause ;;
+      2) follow_logs ;;
+      3) inspect_db; pause ;;
+      4) return ;;
+      *) warn "无效选择"; pause ;;
+    esac
+  done
+}
+
+maintenance_menu() {
+  while true; do
+    show_header
+    echo "[维护菜单]"
     cat <<'EOF'
 [1] 立即运行一次
-[2] 核心配置（模型 / 天数 / 阈值 / 定时）
-[3] 邮件配置
-[4] 数据源与 CORE 配置
-[5] 查看最近日志
-[6] 实时跟踪日志
-[7] 查看数据库总览
-[8] 查看待展示池
-[9] 测试邮箱
-[10] 重新执行部署脚本（升级 / 重配）
-[11] 卸载 essay-agent
-[0] 退出
+[2] 重新执行部署脚本（升级 / 重配）
+[3] 卸载 essay-agent
+[4] 返回主菜单
 EOF
     echo ""
     read -r -p "请选择操作: " choice < /dev/tty || true
     case "$choice" in
       1) run_now; pause ;;
-      2) edit_core_settings; pause ;;
-      3) edit_email_settings; pause ;;
-      4) edit_source_settings; pause ;;
-      5) view_logs; pause ;;
-      6) follow_logs ;;
-      7) inspect_db; pause ;;
-      8) show_pending; pause ;;
-      9) test_email; pause ;;
-      10) rerun_deploy; pause ;;
-      11) uninstall_agent ;;
+      2) rerun_deploy; pause ;;
+      3) uninstall_agent ;;
+      4) return ;;
+      *) warn "无效选择"; pause ;;
+    esac
+  done
+}
+
+menu_loop() {
+  require_root
+  while true; do
+    show_header
+    show_dashboard
+    cat <<'EOF'
+[1] 运行状态总览
+[2] 核心配置
+[3] 邮件配置
+[4] 数据源与 CORE
+[5] 日志与诊断
+[6] 维护操作（运行 / 升级 / 卸载）
+[0] 退出
+EOF
+    echo ""
+    read -r -p "请选择操作: " choice < /dev/tty || true
+    case "$choice" in
+      1) show_header; show_dashboard; pause ;;
+      2) core_settings_menu ;;
+      3) email_settings_menu ;;
+      4) sources_menu ;;
+      5) logs_menu ;;
+      6) maintenance_menu ;;
       0) exit 0 ;;
       *) warn "无效选择"; pause ;;
     esac
