@@ -525,6 +525,7 @@ With `esag`, you now get a more panel-like terminal experience with:
 
 - a status homepage,
 - current installed commit and recent upgrade time on the homepage,
+- a latest run stats summary on the homepage,
 - submenus for core settings,
 - submenus for email settings,
 - submenus for sources / CORE,
@@ -539,10 +540,12 @@ In practice, `esag` can interactively:
 - modify email settings directly from the menu,
 - toggle common data sources interactively,
 - manage CORE API settings,
+- manage target journals,
 - inspect logs,
 - inspect database status,
 - inspect pending pool,
 - test email,
+- create and restore backups,
 - re-run deploy for upgrades,
 - uninstall the project.
 

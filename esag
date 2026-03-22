@@ -136,6 +136,73 @@ recent_outputs() {
   find "$OUTPUT_DIR" -maxdepth 1 -type f -printf '%TY-%Tm-%Td %TH:%TM %f\n' 2>/dev/null | sort -r | head -n 5 || true
 }
 
+latest_stats_file() {
+  if [[ ! -d "$OUTPUT_DIR" ]]; then
+    return 0
+  fi
+  find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*_stats.json' | sort | tail -n 1 || true
+}
+
+show_latest_stats_summary() {
+  local stats_file
+  stats_file="$(latest_stats_file)"
+  if [[ -z "$stats_file" || ! -f "$stats_file" ]]; then
+    echo "  暂无 stats.json 统计文件"
+    return 0
+  fi
+  python3 - <<'PY' "$stats_file"
+import json, sys
+p = sys.argv[1]
+try:
+    data = json.load(open(p, 'r', encoding='utf-8'))
+except Exception:
+    print('  无法解析最近 stats.json')
+    raise SystemExit(0)
+keys = ['fetched','kept','analysis_success','analysis_failed','already_reported','below_min_relevance']
+print(f'  最近统计文件: {p.split("/")[-1]}')
+for k in keys:
+    if k in data:
+        print(f'  {k}: {data[k]}')
+PY
+}
+
+backup_dir_root() {
+  echo "$INSTALL_DIR/backups"
+}
+
+create_backup() {
+  require_install
+  local bdir ts
+  ts="$(date '+%Y%m%d-%H%M%S')"
+  bdir="$(backup_dir_root)/$ts"
+  mkdir -p "$bdir"
+  cp -f "$ENV_FILE" "$bdir/.env" 2>/dev/null || true
+  cp -f "$CONFIG_FILE" "$bdir/config.yaml" 2>/dev/null || true
+  cp -f "$INSTALL_DIR/papers.db" "$bdir/papers.db" 2>/dev/null || true
+  echo "$bdir"
+}
+
+list_backups() {
+  local root
+  root="$(backup_dir_root)"
+  if [[ ! -d "$root" ]]; then
+    return 0
+  fi
+  find "$root" -mindepth 1 -maxdepth 1 -type d | sort -r || true
+}
+
+restore_backup() {
+  require_install
+  local backup_path="$1"
+  [[ -d "$backup_path" ]] || error "备份不存在：$backup_path"
+  cp -f "$backup_path/.env" "$ENV_FILE" 2>/dev/null || true
+  cp -f "$backup_path/config.yaml" "$CONFIG_FILE" 2>/dev/null || true
+  cp -f "$backup_path/papers.db" "$INSTALL_DIR/papers.db" 2>/dev/null || true
+  chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
+  chmod 600 "$ENV_FILE" 2>/dev/null || true
+  info "已恢复备份：$backup_path"
+}
+
 read_sources() {
   awk '
     /^sources:/ {in_sources=1; next}
@@ -177,6 +244,103 @@ while i < len(lines):
     out.append(line)
     i += 1
 cfg_path.write_text('\\n'.join(out) + '\\n', encoding='utf-8')
+PY
+}
+
+list_target_journals() {
+  python3 - <<'PY' "$CONFIG_FILE"
+from pathlib import Path
+import sys, re
+text = Path(sys.argv[1]).read_text(encoding='utf-8')
+lines = text.splitlines()
+in_block = False
+current_name = None
+current_issn = None
+for line in lines:
+    if line.startswith('target_journals:'):
+        in_block = True
+        continue
+    if in_block and line.startswith('db_path:'):
+        break
+    if not in_block:
+        continue
+    m1 = re.match(r'^\s*-\s+name:\s+"?(.*?)"?\s*$', line)
+    if m1:
+        current_name = m1.group(1)
+        current_issn = None
+        continue
+    m2 = re.match(r'^\s+issn:\s+"?(.*?)"?\s*$', line)
+    if m2 and current_name:
+        current_issn = m2.group(1)
+        print(f'{current_name}\t{current_issn}')
+        current_name = None
+        current_issn = None
+PY
+}
+
+add_target_journal() {
+  local jname="$1"
+  local jissn="$2"
+  python3 - <<'PY' "$CONFIG_FILE" "$jname" "$jissn"
+from pathlib import Path
+import sys
+cfg = Path(sys.argv[1])
+name = sys.argv[2]
+issn = sys.argv[3]
+text = cfg.read_text(encoding='utf-8')
+needle = 'db_path:'
+insert = f'  - name: "{name}"\n    issn: "{issn}"\n\n'
+idx = text.find(needle)
+if idx == -1:
+    raise SystemExit('db_path section not found')
+text = text[:idx] + insert + text[idx:]
+cfg.write_text(text, encoding='utf-8')
+PY
+}
+
+delete_target_journal_by_index() {
+  local index="$1"
+  python3 - <<'PY' "$CONFIG_FILE" "$index"
+from pathlib import Path
+import sys, re
+cfg = Path(sys.argv[1])
+remove_index = int(sys.argv[2])
+lines = cfg.read_text(encoding='utf-8').splitlines()
+out = []
+in_block = False
+capture = []
+entries = []
+for line in lines:
+    if line.startswith('target_journals:'):
+        in_block = True
+        out.append(line)
+        continue
+    if in_block and line.startswith('db_path:'):
+        in_block = False
+        if entries:
+            for idx, ent in enumerate(entries, start=1):
+                if idx != remove_index:
+                    out.extend(ent)
+        out.append(line)
+        continue
+    if in_block:
+        if re.match(r'^\s*-\s+name:', line):
+            if capture:
+                entries.append(capture)
+            capture = [line]
+        elif capture:
+            capture.append(line)
+        else:
+            out.append(line)
+    else:
+        out.append(line)
+if capture:
+    entries.append(capture)
+if in_block:
+    for idx, ent in enumerate(entries, start=1):
+        if idx != remove_index:
+            out.extend(ent)
+cfg.write_text('\n'.join(out) + '\n', encoding='utf-8')
 PY
 }
 
@@ -257,6 +421,9 @@ show_dashboard() {
   else
     echo "  启用数据源名单  : （未检测到）"
   fi
+  echo ""
+  echo "[最近运行统计摘要]"
+  show_latest_stats_summary
   echo ""
   echo "[最近输出文件]"
   outputs="$(recent_outputs)"
@@ -447,12 +614,90 @@ edit_source_settings() {
     write_env_value CORE_API_KEY "$new_core"
     info "CORE API Key 已更新"
   fi
+}
 
-  echo ""
-  echo "目标期刊目前仍建议直接编辑 config.yaml。"
-  if confirm "是否打开 config.yaml 继续编辑目标期刊或高级源配置？" "n"; then
-    open_config_editor
-  fi
+manage_target_journals() {
+  require_install
+  while true; do
+    show_header
+    echo "[目标期刊管理]"
+    local idx=1
+    while IFS=$'\t' read -r name issn; do
+      [[ -n "$name" ]] || continue
+      echo "[$idx] $name ($issn)"
+      idx=$((idx+1))
+    done < <(list_target_journals)
+    echo ""
+    cat <<'EOF'
+[a] 新增期刊
+[d] 删除期刊
+[e] 打开 config.yaml 手动编辑
+[q] 返回上一级
+EOF
+    echo ""
+    read -r -p "请选择操作: " choice < /dev/tty || true
+    case "$choice" in
+      a|A)
+        ask "期刊名称" "" jname
+        ask "ISSN" "" jissn
+        if [[ -n "$jname" && -n "$jissn" ]]; then
+          add_target_journal "$jname" "$jissn"
+          info "已新增期刊：$jname ($jissn)"
+        else
+          warn "名称或 ISSN 为空，已取消"
+        fi
+        pause ;;
+      d|D)
+        ask "输入要删除的期刊编号" "" del_idx
+        if [[ -n "$del_idx" ]]; then
+          delete_target_journal_by_index "$del_idx"
+          info "已尝试删除编号 $del_idx 的期刊"
+        fi
+        pause ;;
+      e|E)
+        open_config_editor
+        pause ;;
+      q|Q) return ;;
+      *) warn "无效选择"; pause ;;
+    esac
+  done
+}
+
+backup_restore_menu() {
+  require_install
+  while true; do
+    show_header
+    echo "[备份 / 恢复]"
+    echo "当前备份目录：$(backup_dir_root)"
+    echo ""
+    cat <<'EOF'
+[1] 创建新备份
+[2] 查看现有备份
+[3] 恢复指定备份
+[4] 返回上一级
+EOF
+    echo ""
+    read -r -p "请选择操作: " choice < /dev/tty || true
+    case "$choice" in
+      1)
+        created="$(create_backup)"
+        info "已创建备份：$created"
+        pause ;;
+      2)
+        list_backups | sed 's/^/  /' || true
+        pause ;;
+      3)
+        echo "可用备份："
+        list_backups | sed 's/^/  /' || true
+        ask "输入完整备份目录路径" "" restore_path
+        if [[ -n "$restore_path" ]]; then
+          restore_backup "$restore_path"
+        fi
+        pause ;;
+      4) return ;;
+      *) warn "无效选择"; pause ;;
+    esac
+  done
 }
 
 upgrade_program_keep_config() {
@@ -609,17 +854,19 @@ sources_menu() {
     echo ""
     cat <<'EOF'
 [1] 交互式开关常用数据源 + CORE
-[2] 编辑 config.yaml（目标期刊 / 高级源配置）
-[3] 查看待展示池
-[4] 返回主菜单
+[2] 目标期刊管理
+[3] 编辑 config.yaml（高级源配置）
+[4] 查看待展示池
+[5] 返回主菜单
 EOF
     echo ""
     read -r -p "请选择操作: " choice < /dev/tty || true
     case "$choice" in
       1) edit_source_settings; pause ;;
-      2) open_config_editor; pause ;;
-      3) show_pending; pause ;;
-      4) return ;;
+      2) manage_target_journals ;;
+      3) open_config_editor; pause ;;
+      4) show_pending; pause ;;
+      5) return ;;
       *) warn "无效选择"; pause ;;
     esac
   done
@@ -655,8 +902,9 @@ maintenance_menu() {
 [1] 立即运行一次
 [2] 升级程序（保留当前配置）
 [3] 全量重配（重新执行部署脚本）
-[4] 卸载 essay-agent
-[5] 返回主菜单
+[4] 备份 / 恢复
+[5] 卸载 essay-agent
+[6] 返回主菜单
 EOF
     echo ""
     read -r -p "请选择操作: " choice < /dev/tty || true
@@ -664,8 +912,9 @@ EOF
       1) run_now; pause ;;
       2) upgrade_program_keep_config; pause ;;
       3) rerun_deploy; pause ;;
-      4) uninstall_agent ;;
-      5) return ;;
+      4) backup_restore_menu ;;
+      5) uninstall_agent ;;
+      6) return ;;
       *) warn "无效选择"; pause ;;
     esac
   done
