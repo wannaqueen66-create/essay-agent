@@ -56,6 +56,50 @@ write_env_value() {
   fi
 }
 
+read_sources() {
+  awk '
+    /^sources:/ {in_sources=1; next}
+    in_sources && /^[[:space:]]*-[[:space:]]/ {
+      sub(/^[[:space:]]*-[[:space:]]*/, "")
+      gsub(/[[:space:]]+$/, "")
+      print
+      next
+    }
+    in_sources && !/^[[:space:]]*-[[:space:]]/ && NF>0 {exit}
+  ' "$CONFIG_FILE" 2>/dev/null
+}
+
+write_sources() {
+  local new_sources_block="$1"
+  python3 - <<'PY' "$CONFIG_FILE" "$new_sources_block"
+from pathlib import Path
+import sys
+cfg_path = Path(sys.argv[1])
+block = sys.argv[2].split('\\n') if sys.argv[2] else []
+text = cfg_path.read_text(encoding='utf-8')
+lines = text.splitlines()
+out = []
+i = 0
+while i < len(lines):
+    line = lines[i]
+    if line.startswith('sources:'):
+        out.append('sources:')
+        for item in block:
+            if item.strip():
+                out.append(f'  - {item.strip()}')
+        i += 1
+        while i < len(lines):
+            if lines[i].startswith('  - ') or lines[i].startswith('    #') or lines[i].strip() == '':
+                i += 1
+                continue
+            break
+        continue
+    out.append(line)
+    i += 1
+cfg_path.write_text('\\n'.join(out) + '\\n', encoding='utf-8')
+PY
+}
+
 pause() {
   echo ""
   read -r -p "按回车继续..." _ < /dev/tty || true
@@ -136,43 +180,57 @@ show_header() {
 
 show_dashboard() {
   require_install
-  local s t last_start last_result run_time
+  local s t last_start last_result run_time source_count journal_count outputs
   s="$(service_status)"
   t="$(timer_status)"
   last_start="$(last_run_time)"
   last_result="$(last_run_result)"
   run_time="$(current_timer_time)"
   run_time="${run_time:-07:00}"
+  source_count="$(awk '
+    /^sources:/ {in_sources=1; next}
+    in_sources && /^[[:space:]]*-[[:space:]]/ {count++}
+    in_sources && !/^[[:space:]]*-[[:space:]]/ && NF>0 {in_sources=0}
+    END {print count+0}
+  ' "$CONFIG_FILE" 2>/dev/null)"
+  journal_count="$(awk '
+    /^target_journals:/ {in_j=1; next}
+    in_j && /^[[:space:]]*-[[:space:]]+name:/ {count++}
+    END {print count+0}
+  ' "$CONFIG_FILE" 2>/dev/null)"
 
-  echo "[运行状态]"
-  echo "  服务状态: ${s:-unknown}"
-  echo "  定时器状态: ${t:-unknown}"
-  echo "  每日运行时间: $run_time"
-  echo "  上次运行时间: ${last_start:-unknown}"
-  echo "  上次运行结果: ${last_result:-unknown}"
+  echo "[状态面板]"
+  echo "  服务状态        : ${s:-unknown}"
+  echo "  定时器状态      : ${t:-unknown}"
+  echo "  每日运行时间    : $run_time"
+  echo "  上次运行时间    : ${last_start:-unknown}"
+  echo "  上次运行结果    : ${last_result:-unknown}"
   echo ""
-  echo "[当前配置摘要]"
-  echo "  模型: $(read_env_value OPENAI_MODEL)"
-  echo "  抓取天数: $(read_env_value DAYS_BACK)"
-  echo "  每路抓取上限: $(read_env_value MAX_RESULTS_PER_QUERY)"
-  echo "  相关性阈值: $(read_env_value MIN_RELEVANCE_SCORE)"
-  echo "  Markdown 展示前 N 条: $(read_env_value REPORT_TOP_N)"
-  echo "  邮件正文前 N 条: $(read_env_value EMAIL_TOP_N)"
-  echo "  待展示池窗口天数: $(read_env_value PENDING_POOL_DAYS)"
+  echo "[配置摘要]"
+  echo "  模型            : $(read_env_value OPENAI_MODEL)"
+  echo "  抓取天数        : $(read_env_value DAYS_BACK)"
+  echo "  每路抓取上限    : $(read_env_value MAX_RESULTS_PER_QUERY)"
+  echo "  相关性阈值      : $(read_env_value MIN_RELEVANCE_SCORE)"
+  echo "  Markdown 展示数 : $(read_env_value REPORT_TOP_N)"
+  echo "  邮件正文展示数  : $(read_env_value EMAIL_TOP_N)"
+  echo "  待展示池天数    : $(read_env_value PENDING_POOL_DAYS)"
   if [[ "$(read_env_value EMAIL_ENABLED)" == "true" ]]; then
-    echo "  邮件推送: 开启"
-    echo "  收件人: $(read_env_value EMAIL_TO)"
+    echo "  邮件推送        : 开启"
+    echo "  收件人          : $(read_env_value EMAIL_TO)"
   else
-    echo "  邮件推送: 关闭"
+    echo "  邮件推送        : 关闭"
   fi
   if [[ -n "$(read_env_value CORE_API_KEY)" ]]; then
-    echo "  CORE API: 已配置"
+    echo "  CORE API        : 已配置"
   else
-    echo "  CORE API: 未配置"
+    echo "  CORE API        : 未配置"
   fi
   echo ""
+  echo "[数据源与期刊]"
+  echo "  启用数据源数量  : ${source_count:-0}"
+  echo "  目标期刊数量    : ${journal_count:-0}"
+  echo ""
   echo "[最近输出文件]"
-  local outputs
   outputs="$(recent_outputs)"
   if [[ -n "$outputs" ]]; then
     echo "$outputs" | sed 's/^/  /'
@@ -323,24 +381,57 @@ edit_email_settings() {
 edit_source_settings() {
   require_install
   step "数据源与 CORE 配置"
-  local current_core
+  local current_core available_sources current_sources selected_sources source
   current_core="$(read_env_value CORE_API_KEY)"
+  available_sources=(arxiv openalex crossref semantic_scholar europepmc core)
+  mapfile -t current_sources < <(read_sources)
+  selected_sources=()
+
+  echo "当前启用的数据源："
+  if [[ ${#current_sources[@]} -gt 0 ]]; then
+    for source in "${current_sources[@]}"; do
+      echo "  - $source"
+    done
+  else
+    echo "  （未检测到）"
+  fi
+  echo ""
+  echo "你可以逐个决定是否启用下面的数据源："
+  for source in "${available_sources[@]}"; do
+    local default_choice="n"
+    for existing in "${current_sources[@]:-}"; do
+      if [[ "$existing" == "$source" ]]; then
+        default_choice="y"
+        break
+      fi
+    done
+    if confirm "启用数据源 $source ?" "$default_choice"; then
+      selected_sources+=("$source")
+    fi
+  done
+
+  if [[ ${#selected_sources[@]} -gt 0 ]]; then
+    write_sources "$(printf '%s\n' "${selected_sources[@]}")"
+    info "数据源列表已更新"
+  else
+    warn "你没有启用任何数据源，已保留原配置不变"
+  fi
+
+  echo ""
   if [[ -n "$current_core" ]]; then
     echo "当前 CORE API Key：已配置"
   else
     echo "当前 CORE API Key：未配置"
   fi
-  echo ""
-  echo "说明：source 开关和 target_journals 这类复杂配置仍建议直接编辑 config.yaml。"
-  echo "这里先提供最常用的 CORE API Key 交互修改。"
-  echo ""
   if confirm "是否配置 / 更新 CORE API Key？" "n"; then
     ask_secret "CORE API Key（留空可清空）" new_core
     write_env_value CORE_API_KEY "$new_core"
     info "CORE API Key 已更新"
   fi
+
   echo ""
-  if confirm "是否打开 config.yaml 继续编辑更复杂的数据源配置？" "n"; then
+  echo "目标期刊目前仍建议直接编辑 config.yaml。"
+  if confirm "是否打开 config.yaml 继续编辑目标期刊或高级源配置？" "n"; then
     open_config_editor
   fi
 }

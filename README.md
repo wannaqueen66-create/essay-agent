@@ -515,6 +515,7 @@ In practice, `esag` can interactively:
 - run the program manually,
 - modify core settings directly from the menu (model, days, max results, score threshold, report sizes, timer time),
 - modify email settings directly from the menu,
+- toggle common data sources interactively,
 - manage CORE API settings,
 - inspect logs,
 - inspect database status,
