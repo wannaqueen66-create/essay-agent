@@ -89,6 +89,11 @@ echo "  3. 交互式配置 OpenAI 与邮件参数"
 echo "  4. 安装 Python 虚拟环境与依赖"
 echo "  5. 安装 systemd 服务与定时任务"
 echo ""
+echo "  交互说明："
+echo "  - 看到 [默认值] 的选项时，直接回车 = 使用默认值"
+echo "  - y/n 题如果有 [Y/n] 或 [y/N]，直接回车 = 使用括号里的默认选项"
+echo "  - 没有默认值的字段，需要你手动输入"
+echo ""
 
 if ! confirm "是否继续部署？"; then
     echo "已取消。"

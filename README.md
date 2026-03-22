@@ -262,13 +262,21 @@ The installer will:
 1. install system dependencies;
 2. pull the latest repository code;
 3. launch an **interactive configuration flow**;
-4. ask you for OpenAI API settings;
-5. optionally ask you for email settings;
-6. ask for runtime parameters such as `DAYS_BACK` and `MIN_RELEVANCE_SCORE`;
-7. create the `.env` file automatically;
-8. install a Python virtual environment;
-9. install systemd service and timer;
-10. optionally run a first test execution.
+4. show prompts with visible defaults;
+5. let you press **Enter** to accept the default whenever a prompt displays `[default]`;
+6. use the default choice directly for prompts like `[Y/n]` or `[y/N]` if you just press Enter;
+7. ask you for OpenAI API settings;
+8. optionally ask you for email settings;
+9. ask for runtime parameters such as `DAYS_BACK` and `MIN_RELEVANCE_SCORE`;
+10. create the `.env` file automatically;
+11. install a Python virtual environment;
+12. install systemd service and timer;
+13. optionally run a first test execution.
+
+More concretely, during setup:
+
+- if you see `[default]`, pressing Enter means **use that default value**;
+- if you see `[Y/n]` or `[y/N]`, pressing Enter means **use the shown default choice**.
 
 部署脚本会自动完成：
 
