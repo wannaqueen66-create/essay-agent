@@ -625,7 +625,7 @@ If you are running this for the first time, start small:
 ```env
 OPENAI_MODEL=gpt-4.1-mini
 DAYS_BACK=1
-MAX_RESULTS_PER_QUERY=5
+MAX_RESULTS_PER_QUERY=10
 MIN_RELEVANCE_SCORE=60
 FORCE_REFRESH=false
 EMAIL_ENABLED=false

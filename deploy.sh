@@ -242,8 +242,8 @@ echo ""
 echo "  以下参数控制抓取范围和过滤强度。"
 echo "  首次部署建议先用默认值，确认跑通后再放大。"
 echo ""
-ask "抓取最近几天论文（DAYS_BACK）" "2" DAYS_BACK
-ask "每个 query 每个源最大抓取数（MAX_RESULTS_PER_QUERY）" "30" MAX_RESULTS_PER_QUERY
+ask "抓取最近几天论文（DAYS_BACK）" "1" DAYS_BACK
+ask "每个 query 每个源最大抓取数（MAX_RESULTS_PER_QUERY）" "10" MAX_RESULTS_PER_QUERY
 ask "最低相关性阈值 0-100（MIN_RELEVANCE_SCORE）" "60" MIN_RELEVANCE_SCORE
 ask "Markdown 报告展示前 N 条（REPORT_TOP_N）" "10" REPORT_TOP_N
 ask "邮件正文展示前 N 条（EMAIL_TOP_N）" "5" EMAIL_TOP_N
