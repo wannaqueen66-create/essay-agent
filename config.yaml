@@ -171,6 +171,8 @@ target_journals:
   # --- 建筑环境与空间行为 ---
   - name: "Building and Environment"
     issn: "0360-1323"
+  - name: "Journal of Building Engineering"
+    issn: "2352-7102"
   - name: "Environment and Behavior"
     issn: "0013-9165"
   - name: "Journal of Environmental Psychology"

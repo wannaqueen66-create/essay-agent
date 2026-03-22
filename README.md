@@ -187,7 +187,7 @@ Besides keyword-based search, the project can directly monitor selected journals
 
 Pre-configured examples include journals from:
 
-- architecture and built environment
+- architecture and built environment (including Building and Environment, Journal of Building Engineering)
 - sports science and sports space
 - VR / HCI / perception
 - mobility / trajectory / urban space

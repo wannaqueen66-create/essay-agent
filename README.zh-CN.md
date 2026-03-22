@@ -222,7 +222,7 @@ MIN_RELEVANCE_SCORE=60
 
 项目里已经预置了一批示例期刊，覆盖：
 
-- 建筑环境与空间行为
+- 建筑环境与空间行为（包括 Building and Environment、Journal of Building Engineering）
 - 体育科学与运动空间
 - VR / HCI / 感知
 - 行为轨迹 / 时空行为 / 城市空间
