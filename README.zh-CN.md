@@ -569,9 +569,9 @@ sudo nano /opt/essay-agent/config.yaml
 每次运行后，会在 `output/` 下生成：
 
 ```text
-output/arxiv_daily_YYYY-MM-DD.xlsx
-output/arxiv_daily_YYYY-MM-DD.md
-output/arxiv_daily_YYYY-MM-DD_stats.json
+output/essay_daily_YYYY-MM-DD.xlsx
+output/essay_daily_YYYY-MM-DD.md
+output/essay_daily_YYYY-MM-DD_stats.json
 ```
 
 ### Excel 文件

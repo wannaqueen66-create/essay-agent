@@ -605,9 +605,9 @@ Then the next scheduled run will use the updated config.
 Each successful run generates files like:
 
 ```text
-output/arxiv_daily_YYYY-MM-DD.xlsx
-output/arxiv_daily_YYYY-MM-DD.md
-output/arxiv_daily_YYYY-MM-DD_stats.json
+output/essay_daily_YYYY-MM-DD.xlsx
+output/essay_daily_YYYY-MM-DD.md
+output/essay_daily_YYYY-MM-DD_stats.json
 ```
 
 ### Excel / Excel 文件

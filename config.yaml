@@ -9,7 +9,7 @@
 # 输出目录与文件名
 # -----------------------------
 output_dir: "output"          # 输出文件夹（不存在会自动创建）
-output_prefix: "arxiv_daily"  # 输出文件名前缀，程序会自动拼接日期（YYYY-MM-DD）
+output_prefix: "essay_daily"  # 输出文件名前缀，程序会自动拼接日期（YYYY-MM-DD）
 
 # -----------------------------
 # OpenAI 输入长度设置

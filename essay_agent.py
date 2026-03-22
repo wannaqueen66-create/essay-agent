@@ -1051,7 +1051,7 @@ def main():
     client, runtime = load_env()
 
     output_dir = config.get("output_dir", "output")
-    output_prefix = config.get("output_prefix", "arxiv_daily")
+    output_prefix = config.get("output_prefix", "essay_daily")
     max_chars_per_paper = config.get("max_chars_per_paper", 6000)
     openai_model = runtime["openai_model"]
     days_back = runtime["days_back"]

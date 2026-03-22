@@ -113,7 +113,7 @@ def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5) -> str:
 
 def guess_paths(cfg: dict, date_str: str):
     output_dir = cfg.get("output_dir", "output")
-    prefix = cfg.get("output_prefix", "arxiv_daily")
+    prefix = cfg.get("output_prefix", "essay_daily")
     xlsx = os.path.join(output_dir, f"{prefix}_{date_str}.xlsx")
     md = os.path.join(output_dir, f"{prefix}_{date_str}.md")
     stats = os.path.join(output_dir, f"{prefix}_{date_str}_stats.json")
