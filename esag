@@ -33,10 +33,12 @@ is_installed() {
   [[ -d "$INSTALL_DIR" && -f "$ENV_FILE" && -f "$DEPLOY_SCRIPT" ]]
 }
 
-require_install() {
+ensure_installed() {
   if ! is_installed; then
-    error "未检测到 essay-agent 安装目录：$INSTALL_DIR，请先执行安装。"
+    warn "当前未安装 essay-agent，请先执行 [1] 安装 / 重装。"
+    return 1
   fi
+  return 0
 }
 
 read_env_value() {
@@ -171,7 +173,6 @@ backup_dir_root() {
 }
 
 create_backup() {
-  require_install
   local bdir ts
   ts="$(date '+%Y%m%d-%H%M%S')"
   bdir="$(backup_dir_root)/$ts"
@@ -192,7 +193,6 @@ list_backups() {
 }
 
 restore_backup() {
-  require_install
   local backup_path="$1"
   [[ -d "$backup_path" ]] || error "备份不存在：$backup_path"
   cp -f "$backup_path/.env" "$ENV_FILE" 2>/dev/null || true
@@ -255,7 +255,6 @@ text = Path(sys.argv[1]).read_text(encoding='utf-8')
 lines = text.splitlines()
 in_block = False
 current_name = None
-current_issn = None
 for line in lines:
     if line.startswith('target_journals:'):
         in_block = True
@@ -267,14 +266,11 @@ for line in lines:
     m1 = re.match(r'^\s*-\s+name:\s+"?(.*?)"?\s*$', line)
     if m1:
         current_name = m1.group(1)
-        current_issn = None
         continue
     m2 = re.match(r'^\s+issn:\s+"?(.*?)"?\s*$', line)
     if m2 and current_name:
-        current_issn = m2.group(1)
-        print(f'{current_name}\t{current_issn}')
+        print(f'{current_name}\t{m2.group(1)}')
         current_name = None
-        current_issn = None
 PY
 }
 
@@ -360,7 +356,7 @@ show_header() {
 }
 
 show_dashboard() {
-  require_install
+  ensure_installed || return 1
   local s t last_start last_result run_time source_count journal_count outputs commit_id upgraded_at
   s="$(service_status)"
   t="$(timer_status)"
@@ -453,44 +449,14 @@ run_installer() {
   bash "$tmp_script"
 }
 
-run_now() {
-  require_install
-  step "立即执行一次主程序"
-  sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' essay_agent.py"
-}
-
-view_logs() {
-  require_install
-  step "查看最近日志"
-  journalctl -u "$SERVICE_NAME" -n 200 --no-pager
-}
-
-follow_logs() {
-  require_install
-  step "实时跟踪日志"
-  journalctl -u "$SERVICE_NAME" -f
-}
-
-inspect_db() {
-  require_install
-  step "数据库总览"
-  sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' inspect_db.py"
-}
-
-show_pending() {
-  require_install
-  step "待展示池"
-  sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' show_pending_pool.py"
-}
-
-test_email() {
-  require_install
-  step "测试邮箱"
-  sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' test_email.py"
-}
-
-open_env_editor() { require_install; ${EDITOR:-nano} "$ENV_FILE"; }
-open_config_editor() { require_install; ${EDITOR:-nano} "$CONFIG_FILE"; }
+run_now() { ensure_installed || return 1; step "立即执行一次主程序"; sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' essay_agent.py"; }
+view_logs() { ensure_installed || return 1; step "查看最近日志"; journalctl -u "$SERVICE_NAME" -n 200 --no-pager; }
+follow_logs() { ensure_installed || return 1; step "实时跟踪日志"; journalctl -u "$SERVICE_NAME" -f; }
+inspect_db() { ensure_installed || return 1; step "数据库总览"; sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' inspect_db.py"; }
+show_pending() { ensure_installed || return 1; step "待展示池"; sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' show_pending_pool.py"; }
+test_email() { ensure_installed || return 1; step "测试邮箱"; sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && '$VENV_PY' test_email.py"; }
+open_env_editor() { ensure_installed || return 1; ${EDITOR:-nano} "$ENV_FILE"; }
+open_config_editor() { ensure_installed || return 1; ${EDITOR:-nano} "$CONFIG_FILE"; }
 
 apply_timer_time() {
   local run_time="$1"
@@ -500,7 +466,7 @@ apply_timer_time() {
 }
 
 edit_core_settings() {
-  require_install
+  ensure_installed || return 1
   step "核心配置"
   local current_model current_days current_max current_score current_report current_email_top current_pending current_time
   current_model="$(read_env_value OPENAI_MODEL)"
@@ -510,9 +476,7 @@ edit_core_settings() {
   current_report="$(read_env_value REPORT_TOP_N)"
   current_email_top="$(read_env_value EMAIL_TOP_N)"
   current_pending="$(read_env_value PENDING_POOL_DAYS)"
-  current_time="$(current_timer_time)"
-  current_time="${current_time:-07:00}"
-
+  current_time="$(current_timer_time)"; current_time="${current_time:-07:00}"
   ask "模型名称" "$current_model" new_model
   ask "抓取最近几天论文（DAYS_BACK）" "$current_days" new_days
   ask "每个 query 每个源最大抓取数（MAX_RESULTS_PER_QUERY）" "$current_max" new_max
@@ -521,7 +485,6 @@ edit_core_settings() {
   ask "邮件正文展示前 N 条（EMAIL_TOP_N）" "$current_email_top" new_email_top
   ask "待展示池窗口天数（PENDING_POOL_DAYS）" "$current_pending" new_pending
   ask "每天自动运行时间（如 07:00）" "$current_time" new_time
-
   write_env_value OPENAI_MODEL "$new_model"
   write_env_value DAYS_BACK "$new_days"
   write_env_value MAX_RESULTS_PER_QUERY "$new_max"
@@ -534,7 +497,7 @@ edit_core_settings() {
 }
 
 edit_email_settings() {
-  require_install
+  ensure_installed || return 1
   step "邮件配置"
   local enabled host port username password from to tls
   enabled="$(read_env_value EMAIL_ENABLED)"
@@ -544,13 +507,11 @@ edit_email_settings() {
   from="$(read_env_value EMAIL_FROM)"
   to="$(read_env_value EMAIL_TO)"
   tls="$(read_env_value EMAIL_USE_TLS)"
-
   if [[ "$enabled" == "true" ]]; then
     if confirm "是否继续启用邮件推送？" "y"; then enabled="true"; else enabled="false"; fi
   else
     if confirm "是否启用邮件推送？" "n"; then enabled="true"; else enabled="false"; fi
   fi
-
   if [[ "$enabled" == "true" ]]; then
     ask "SMTP 主机" "${host:-smtp-relay.brevo.com}" host
     ask "SMTP 端口" "${port:-587}" port
@@ -574,20 +535,15 @@ edit_email_settings() {
 }
 
 edit_source_settings() {
-  require_install
+  ensure_installed || return 1
   step "数据源与 CORE 配置"
   local current_core available_sources current_sources selected_sources source existing
   current_core="$(read_env_value CORE_API_KEY)"
   available_sources=(arxiv openalex crossref semantic_scholar europepmc core)
   mapfile -t current_sources < <(read_sources)
   selected_sources=()
-
   echo "当前启用的数据源："
-  if [[ ${#current_sources[@]} -gt 0 ]]; then
-    for source in "${current_sources[@]}"; do echo "  - $source"; done
-  else
-    echo "  （未检测到）"
-  fi
+  if [[ ${#current_sources[@]} -gt 0 ]]; then for source in "${current_sources[@]}"; do echo "  - $source"; done; else echo "  （未检测到）"; fi
   echo ""
   echo "你可以逐个决定是否启用下面的数据源："
   for source in "${available_sources[@]}"; do
@@ -595,18 +551,14 @@ edit_source_settings() {
     for existing in "${current_sources[@]:-}"; do
       if [[ "$existing" == "$source" ]]; then default_choice="y"; break; fi
     done
-    if confirm "启用数据源 $source ?" "$default_choice"; then
-      selected_sources+=("$source")
-    fi
+    if confirm "启用数据源 $source ?" "$default_choice"; then selected_sources+=("$source"); fi
   done
-
   if [[ ${#selected_sources[@]} -gt 0 ]]; then
     write_sources "$(printf '%s\n' "${selected_sources[@]}")"
     info "数据源列表已更新"
   else
     warn "你没有启用任何数据源，已保留原配置不变"
   fi
-
   echo ""
   if [[ -n "$current_core" ]]; then echo "当前 CORE API Key：已配置"; else echo "当前 CORE API Key：未配置"; fi
   if confirm "是否配置 / 更新 CORE API Key？" "n"; then
@@ -617,7 +569,7 @@ edit_source_settings() {
 }
 
 manage_target_journals() {
-  require_install
+  ensure_installed || return 1
   while true; do
     show_header
     echo "[目标期刊管理]"
@@ -632,7 +584,7 @@ manage_target_journals() {
 [a] 新增期刊
 [d] 删除期刊
 [e] 打开 config.yaml 手动编辑
-[q] 返回上一级
+[q] 返回主菜单
 EOF
     echo ""
     read -r -p "请选择操作: " choice < /dev/tty || true
@@ -640,23 +592,13 @@ EOF
       a|A)
         ask "期刊名称" "" jname
         ask "ISSN" "" jissn
-        if [[ -n "$jname" && -n "$jissn" ]]; then
-          add_target_journal "$jname" "$jissn"
-          info "已新增期刊：$jname ($jissn)"
-        else
-          warn "名称或 ISSN 为空，已取消"
-        fi
+        if [[ -n "$jname" && -n "$jissn" ]]; then add_target_journal "$jname" "$jissn"; info "已新增期刊：$jname ($jissn)"; else warn "名称或 ISSN 为空，已取消"; fi
         pause ;;
       d|D)
         ask "输入要删除的期刊编号" "" del_idx
-        if [[ -n "$del_idx" ]]; then
-          delete_target_journal_by_index "$del_idx"
-          info "已尝试删除编号 $del_idx 的期刊"
-        fi
+        if [[ -n "$del_idx" ]]; then delete_target_journal_by_index "$del_idx"; info "已尝试删除编号 $del_idx 的期刊"; fi
         pause ;;
-      e|E)
-        open_config_editor
-        pause ;;
+      e|E) open_config_editor; pause ;;
       q|Q) return ;;
       *) warn "无效选择"; pause ;;
     esac
@@ -664,7 +606,7 @@ EOF
 }
 
 backup_restore_menu() {
-  require_install
+  ensure_installed || return 1
   while true; do
     show_header
     echo "[备份 / 恢复]"
@@ -674,25 +616,18 @@ backup_restore_menu() {
 [1] 创建新备份
 [2] 查看现有备份
 [3] 恢复指定备份
-[4] 返回上一级
+[4] 返回主菜单
 EOF
     echo ""
     read -r -p "请选择操作: " choice < /dev/tty || true
     case "$choice" in
-      1)
-        created="$(create_backup)"
-        info "已创建备份：$created"
-        pause ;;
-      2)
-        list_backups | sed 's/^/  /' || true
-        pause ;;
+      1) created="$(create_backup)"; info "已创建备份：$created"; pause ;;
+      2) list_backups | sed 's/^/  /' || true; pause ;;
       3)
         echo "可用备份："
         list_backups | sed 's/^/  /' || true
         ask "输入完整备份目录路径" "" restore_path
-        if [[ -n "$restore_path" ]]; then
-          restore_backup "$restore_path"
-        fi
+        if [[ -n "$restore_path" ]]; then restore_backup "$restore_path"; fi
         pause ;;
       4) return ;;
       *) warn "无效选择"; pause ;;
@@ -701,56 +636,41 @@ EOF
 }
 
 upgrade_program_keep_config() {
-  require_install
+  ensure_installed || return 1
   step "升级程序（保留当前配置）"
   local tmp_src backup_dir before_commit after_commit
   tmp_src="$(mktemp -d /tmp/essay-agent-upgrade.XXXXXX)"
   backup_dir="$(mktemp -d /tmp/essay-agent-backup.XXXXXX)"
   trap 'rm -rf "$tmp_src" "$backup_dir"' RETURN
   before_commit="$(current_commit)"
-
   info "当前版本: ${before_commit:-unknown}"
   info "备份当前关键文件 ..."
   cp -f "$ENV_FILE" "$backup_dir/.env"
   cp -f "$CONFIG_FILE" "$backup_dir/config.yaml"
-  if [[ -f "$INSTALL_DIR/papers.db" ]]; then
-    cp -f "$INSTALL_DIR/papers.db" "$backup_dir/papers.db"
-  fi
-
+  if [[ -f "$INSTALL_DIR/papers.db" ]]; then cp -f "$INSTALL_DIR/papers.db" "$backup_dir/papers.db"; fi
   info "拉取最新代码 ..."
   if ! git clone --depth=1 --branch main "https://github.com/wannaqueen66-create/essay-agent.git" "$tmp_src" >/dev/null 2>&1; then
     error "升级失败：无法拉取最新仓库代码"
   fi
-
   info "同步程序文件 ..."
   if ! cp -a "$tmp_src"/. "$INSTALL_DIR"/; then
     warn "程序文件同步失败，开始回滚配置备份 ..."
     cp -f "$backup_dir/.env" "$ENV_FILE" 2>/dev/null || true
     cp -f "$backup_dir/config.yaml" "$CONFIG_FILE" 2>/dev/null || true
-    if [[ -f "$backup_dir/papers.db" ]]; then
-      cp -f "$backup_dir/papers.db" "$INSTALL_DIR/papers.db" 2>/dev/null || true
-    fi
+    [[ -f "$backup_dir/papers.db" ]] && cp -f "$backup_dir/papers.db" "$INSTALL_DIR/papers.db" 2>/dev/null || true
     error "升级失败：文件同步异常，已尝试回滚配置备份"
   fi
-
   info "恢复原配置 ..."
   cp -f "$backup_dir/.env" "$ENV_FILE"
   cp -f "$backup_dir/config.yaml" "$CONFIG_FILE"
-  if [[ -f "$backup_dir/papers.db" ]]; then
-    cp -f "$backup_dir/papers.db" "$INSTALL_DIR/papers.db"
-  fi
-
+  [[ -f "$backup_dir/papers.db" ]] && cp -f "$backup_dir/papers.db" "$INSTALL_DIR/papers.db"
   info "刷新依赖与服务文件 ..."
-  if ! "$INSTALL_DIR/.venv/bin/pip" install -q --upgrade pip >/dev/null 2>&1; then
-    warn "pip 自升级失败，继续尝试安装依赖"
-  fi
+  "$INSTALL_DIR/.venv/bin/pip" install -q --upgrade pip >/dev/null 2>&1 || true
   if ! "$INSTALL_DIR/.venv/bin/pip" install -q -r "$INSTALL_DIR/requirements.txt" >/dev/null 2>&1; then
     warn "依赖安装失败，开始回滚配置备份 ..."
     cp -f "$backup_dir/.env" "$ENV_FILE" 2>/dev/null || true
     cp -f "$backup_dir/config.yaml" "$CONFIG_FILE" 2>/dev/null || true
-    if [[ -f "$backup_dir/papers.db" ]]; then
-      cp -f "$backup_dir/papers.db" "$INSTALL_DIR/papers.db" 2>/dev/null || true
-    fi
+    [[ -f "$backup_dir/papers.db" ]] && cp -f "$backup_dir/papers.db" "$INSTALL_DIR/papers.db" 2>/dev/null || true
     error "升级失败：依赖安装异常，已回滚配置备份"
   fi
   cp "$INSTALL_DIR/deploy/essay-agent.service" /etc/systemd/system/
@@ -761,22 +681,16 @@ upgrade_program_keep_config() {
   chmod 600 "$ENV_FILE"
   systemctl daemon-reload
   systemctl restart "$TIMER_NAME" >/dev/null 2>&1 || true
-
   after_commit="$(current_commit)"
   date '+%Y-%m-%d %H:%M:%S %Z' > "$INSTALL_DIR/.last_upgrade"
   info "升级完成：${before_commit:-unknown} -> ${after_commit:-unknown}"
   info "已保留现有 .env / config.yaml / papers.db"
 }
 
-rerun_deploy() {
-  require_install
-  step "全量重配（重新执行部署脚本）"
-  bash "$DEPLOY_SCRIPT"
-}
+rerun_deploy() { ensure_installed || return 1; step "全量重配（重新执行部署脚本）"; bash "$DEPLOY_SCRIPT"; }
 
 uninstall_agent() {
-  require_root
-  require_install
+  ensure_installed || return 1
   echo ""
   echo -e "${YELLOW}你将要卸载 essay-agent：${NC}"
   echo "- 停止并移除 systemd service/timer"
@@ -797,190 +711,62 @@ uninstall_agent() {
   exit 0
 }
 
-core_settings_menu() {
-  while true; do
-    show_header
-    echo "[核心配置菜单]"
-    echo "  当前模型: $(read_env_value OPENAI_MODEL)"
-    echo "  DAYS_BACK: $(read_env_value DAYS_BACK)"
-    echo "  MAX_RESULTS_PER_QUERY: $(read_env_value MAX_RESULTS_PER_QUERY)"
-    echo "  MIN_RELEVANCE_SCORE: $(read_env_value MIN_RELEVANCE_SCORE)"
-    echo "  RUN_TIME: $(current_timer_time)"
-    echo ""
-    cat <<'EOF'
-[1] 交互式修改核心配置
-[2] 直接编辑 .env
-[3] 返回主菜单
-EOF
-    echo ""
-    read -r -p "请选择操作: " choice < /dev/tty || true
-    case "$choice" in
-      1) edit_core_settings; pause ;;
-      2) open_env_editor; pause ;;
-      3) return ;;
-      *) warn "无效选择"; pause ;;
-    esac
-  done
-}
-
-email_settings_menu() {
-  while true; do
-    show_header
-    echo "[邮件配置菜单]"
-    echo "  EMAIL_ENABLED: $(read_env_value EMAIL_ENABLED)"
-    echo "  EMAIL_TO: $(read_env_value EMAIL_TO)"
-    echo ""
-    cat <<'EOF'
-[1] 交互式修改邮件配置
-[2] 测试邮箱
-[3] 返回主菜单
-EOF
-    echo ""
-    read -r -p "请选择操作: " choice < /dev/tty || true
-    case "$choice" in
-      1) edit_email_settings; pause ;;
-      2) test_email; pause ;;
-      3) return ;;
-      *) warn "无效选择"; pause ;;
-    esac
-  done
-}
-
-sources_menu() {
-  while true; do
-    show_header
-    echo "[数据源与 CORE 菜单]"
-    if [[ -n "$(read_env_value CORE_API_KEY)" ]]; then echo "  CORE API: 已配置"; else echo "  CORE API: 未配置"; fi
-    echo ""
-    cat <<'EOF'
-[1] 交互式开关常用数据源 + CORE
-[2] 目标期刊管理
-[3] 编辑 config.yaml（高级源配置）
-[4] 查看待展示池
-[5] 返回主菜单
-EOF
-    echo ""
-    read -r -p "请选择操作: " choice < /dev/tty || true
-    case "$choice" in
-      1) edit_source_settings; pause ;;
-      2) manage_target_journals ;;
-      3) open_config_editor; pause ;;
-      4) show_pending; pause ;;
-      5) return ;;
-      *) warn "无效选择"; pause ;;
-    esac
-  done
-}
-
-logs_menu() {
-  while true; do
-    show_header
-    echo "[日志与诊断菜单]"
-    cat <<'EOF'
-[1] 查看最近日志
-[2] 实时跟踪日志
-[3] 查看数据库总览
-[4] 返回主菜单
-EOF
-    echo ""
-    read -r -p "请选择操作: " choice < /dev/tty || true
-    case "$choice" in
-      1) view_logs; pause ;;
-      2) follow_logs ;;
-      3) inspect_db; pause ;;
-      4) return ;;
-      *) warn "无效选择"; pause ;;
-    esac
-  done
-}
-
-maintenance_menu() {
-  while true; do
-    show_header
-    echo "[维护菜单]"
-    cat <<'EOF'
-[1] 立即运行一次
-[2] 升级程序（保留当前配置）
-[3] 全量重配（重新执行部署脚本）
-[4] 备份 / 恢复
-[5] 卸载 essay-agent
-[6] 返回主菜单
-EOF
-    echo ""
-    read -r -p "请选择操作: " choice < /dev/tty || true
-    case "$choice" in
-      1) run_now; pause ;;
-      2) upgrade_program_keep_config; pause ;;
-      3) rerun_deploy; pause ;;
-      4) backup_restore_menu ;;
-      5) uninstall_agent ;;
-      6) return ;;
-      *) warn "无效选择"; pause ;;
-    esac
-  done
-}
-
-operations_console() {
-  require_install
-  while true; do
-    show_header
-    show_dashboard
-    cat <<'EOF'
-[1] 运行状态总览
-[2] 核心配置
-[3] 邮件配置
-[4] 数据源与 CORE
-[5] 日志与诊断
-[6] 维护操作（运行 / 升级 / 卸载）
-[0] 返回上一级
-EOF
-    echo ""
-    read -r -p "请选择操作: " choice < /dev/tty || true
-    case "$choice" in
-      1) show_header; show_dashboard; pause ;;
-      2) core_settings_menu ;;
-      3) email_settings_menu ;;
-      4) sources_menu ;;
-      5) logs_menu ;;
-      6) maintenance_menu ;;
-      0) return ;;
-      *) warn "无效选择"; pause ;;
-    esac
-  done
-}
-
-top_level_menu() {
+main_menu() {
   require_root
   while true; do
     show_header
     if is_installed; then
-      echo "[总入口菜单]"
-      echo "  当前状态：已安装，可直接进入运维控制台"
+      show_dashboard || true
     else
-      echo "[总入口菜单]"
-      echo "  当前状态：未安装，请先执行安装"
+      echo "[状态面板]"
+      echo "  当前状态：未安装"
+      echo "  可执行操作：安装 / 退出"
+      echo ""
     fi
-    echo ""
     cat <<'EOF'
-[1] 安装 / 重装 essay-agent
-[2] 进入 esag 运维控制台
-[3] 升级程序（保留当前配置）
-[4] 全量重配
-[5] 卸载 essay-agent
+[1] 安装 / 重装
+[2] 运行状态总览
+[3] 立即运行一次
+[4] 核心配置
+[5] 邮件配置
+[6] 数据源 / CORE
+[7] 查看最近日志
+[8] 查看数据库总览
+[9] 查看待展示池
+[10] 测试邮箱
+[11] 升级程序（保留当前配置）
+[12] 全量重配
+[13] 卸载
+[14] 目标期刊管理
+[15] 备份 / 恢复
+[16] 直接编辑 config.yaml
+[17] 直接编辑 .env
 [0] 退出
 EOF
     echo ""
     read -r -p "请选择操作: " choice < /dev/tty || true
     case "$choice" in
       1) run_installer; pause ;;
-      2) if is_installed; then operations_console; else warn "尚未安装，请先执行安装"; pause; fi ;;
-      3) if is_installed; then upgrade_program_keep_config; pause; else warn "尚未安装，请先执行安装"; pause; fi ;;
-      4) if is_installed; then rerun_deploy; pause; else warn "尚未安装，请先执行安装"; pause; fi ;;
-      5) if is_installed; then uninstall_agent; else warn "尚未安装，无需卸载"; pause; fi ;;
+      2) show_header; show_dashboard || true; pause ;;
+      3) run_now; pause ;;
+      4) edit_core_settings; pause ;;
+      5) edit_email_settings; pause ;;
+      6) edit_source_settings; pause ;;
+      7) view_logs; pause ;;
+      8) inspect_db; pause ;;
+      9) show_pending; pause ;;
+      10) test_email; pause ;;
+      11) upgrade_program_keep_config; pause ;;
+      12) rerun_deploy; pause ;;
+      13) uninstall_agent ;;
+      14) manage_target_journals ;;
+      15) backup_restore_menu ;;
+      16) open_config_editor; pause ;;
+      17) open_env_editor; pause ;;
       0) exit 0 ;;
       *) warn "无效选择"; pause ;;
     esac
   done
 }
 
-top_level_menu
+main_menu

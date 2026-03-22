@@ -252,18 +252,23 @@ If you are not root, use:
 curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | sudo bash
 ```
 
-After launch, `esag` will show a top-level menu such as:
+After launch, `esag` now uses a flatter first-level menu. A typical layout is:
 
 - install / reinstall
-- enter operations console
+- status overview
+- run now
+- core settings
+- email settings
+- sources / CORE
+- recent logs
+- database overview
+- pending pool
+- test email
 - upgrade program (keep current config)
 - full reconfigure
 - uninstall
 
-也就是说，首次安装不再强调“用户直接操作 deploy.sh”，而是：
-
-- 进入 `esag`
-- 由 `esag` 的顶层菜单来调度安装、运维、升级、卸载
+也就是说，现在 `esag` 采用的是更扁平的一层主菜单，不再强调太多层级跳转，而是把常用运维动作直接放在一级入口里。
 
 ### What it does / 这条命令会做什么
 

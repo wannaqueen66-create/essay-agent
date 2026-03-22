@@ -283,15 +283,23 @@ curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/mai
 curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | sudo bash
 ```
 
-也就是说，现在推荐的用户入口不再是直接操作 `deploy.sh`，而是：
+也就是说，现在推荐的用户入口不再是直接操作 `deploy.sh`，而是直接进入 `esag`。
 
-- 先进 `esag`
-- 然后在顶层菜单里选择：
-  - 安装 / 重装
-  - 运维控制台
-  - 升级程序（保留当前配置）
-  - 全量重配
-  - 卸载
+现在的 `esag` 更接近扁平化的一层主菜单，常用动作会直接放在一级，例如：
+
+- 安装 / 重装
+- 运行状态总览
+- 立即运行一次
+- 核心配置
+- 邮件配置
+- 数据源 / CORE
+- 查看最近日志
+- 查看数据库总览
+- 查看待展示池
+- 测试邮箱
+- 升级程序（保留当前配置）
+- 全量重配
+- 卸载
 
 ### 这条命令符合什么预期
 
