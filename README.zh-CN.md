@@ -284,6 +284,16 @@ curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/mai
 
 现在这个脚本的设计就是按这个预期来的。
 
+### 关于 `curl ... | sudo bash` 的说明
+
+这个安装脚本已经专门适配了下面这种执行方式：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
+```
+
+即使脚本是通过管道喂给 `bash` 的，它也会从 `/dev/tty` 读取你的交互输入，所以你仍然可以正常在终端里输入 API Key、邮件参数和运行配置。
+
 ### 脚本会自动做什么
 
 执行后，它会：

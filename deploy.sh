@@ -27,38 +27,47 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 step()  { echo -e "\n${CYAN}${BOLD}>>> $*${NC}"; }
 
+require_tty() {
+    if [[ ! -r /dev/tty ]]; then
+        error "当前没有可用的交互终端（/dev/tty 不可读），无法进入交互式配置。"
+    fi
+}
+
 ask() {
     local prompt="$1"
     local default="$2"
     local var_name="$3"
-    local input
+    local input=""
+    require_tty
     if [[ -n "$default" ]]; then
-        read -rp "$(echo -e "${BOLD}$prompt${NC} [${default}]: ")" input
+        read -r -p "$(echo -e "${BOLD}$prompt${NC} [${default}]: ")" input < /dev/tty || true
         eval "$var_name=\"${input:-$default}\""
     else
-        read -rp "$(echo -e "${BOLD}$prompt${NC}: ")" input
-        eval "$var_name=\"$input\""
+        read -r -p "$(echo -e "${BOLD}$prompt${NC}: ")" input < /dev/tty || true
+        eval "$var_name=\"${input:-}\""
     fi
 }
 
 ask_secret() {
     local prompt="$1"
     local var_name="$2"
-    local input
-    read -srp "$(echo -e "${BOLD}$prompt${NC}: ")" input
-    echo ""
-    eval "$var_name=\"$input\""
+    local input=""
+    require_tty
+    read -r -s -p "$(echo -e "${BOLD}$prompt${NC}: ")" input < /dev/tty || true
+    echo "" > /dev/tty
+    eval "$var_name=\"${input:-}\""
 }
 
 confirm() {
     local prompt="$1"
     local default="${2:-y}"
-    local yn
+    local yn=""
+    require_tty
     if [[ "$default" == "y" ]]; then
-        read -rp "$(echo -e "${BOLD}$prompt${NC} [Y/n]: ")" yn
+        read -r -p "$(echo -e "${BOLD}$prompt${NC} [Y/n]: ")" yn < /dev/tty || true
         yn="${yn:-y}"
     else
-        read -rp "$(echo -e "${BOLD}$prompt${NC} [y/N]: ")" yn
+        read -r -p "$(echo -e "${BOLD}$prompt${NC} [y/N]: ")" yn < /dev/tty || true
         yn="${yn:-n}"
     fi
     [[ "$yn" =~ ^[Yy]$ ]]

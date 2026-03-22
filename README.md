@@ -241,6 +241,22 @@ curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/mai
 
 ### What it does / 这条命令会做什么
 
+This installer is designed to work correctly even when run through a pipe such as:
+
+```bash
+curl -fsSL ... | sudo bash
+```
+
+It reads interactive answers from `/dev/tty`, so you can still type values normally during the setup process.
+
+这个安装脚本已经专门适配了下面这种管道执行方式：
+
+```bash
+curl -fsSL ... | sudo bash
+```
+
+它会从 `/dev/tty` 读取交互输入，因此在安装过程中你仍然可以正常键盘输入配置值。
+
 The installer will:
 
 1. install system dependencies;
