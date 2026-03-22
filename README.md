@@ -264,6 +264,7 @@ After launch, `esag` now uses a flatter first-level menu. A typical layout is:
 - database overview
 - pending pool
 - test email
+- refresh the `esag` console script itself
 - upgrade program (keep current config)
 - full reconfigure
 - uninstall

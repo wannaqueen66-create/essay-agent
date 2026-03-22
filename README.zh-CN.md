@@ -297,6 +297,7 @@ curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/mai
 - 查看数据库总览
 - 查看待展示池
 - 测试邮箱
+- 更新 `esag` 控制台脚本本体
 - 升级程序（保留当前配置）
 - 全量重配
 - 卸载

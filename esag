@@ -635,6 +635,21 @@ EOF
   done
 }
 
+refresh_esag_only() {
+  require_root
+  step "更新 esag 控制台脚本"
+  local tmp_esag
+  tmp_esag="$(mktemp /tmp/esag-refresh.XXXXXX.sh)"
+  trap 'rm -f "$tmp_esag"' RETURN
+  if ! curl -fsSL "https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag" -o "$tmp_esag"; then
+    error "无法下载最新 esag，请检查当前服务器是否能访问 raw.githubusercontent.com"
+  fi
+  chmod 755 "$tmp_esag"
+  cp "$tmp_esag" /usr/local/bin/esag
+  info "esag 已更新到最新版本"
+  warn "如果 shell 里还缓存旧路径，请执行：hash -r"
+}
+
 upgrade_program_keep_config() {
   ensure_installed || return 1
   step "升级程序（保留当前配置）"
@@ -694,7 +709,7 @@ uninstall_agent() {
   echo ""
   echo -e "${YELLOW}你将要卸载 essay-agent：${NC}"
   echo "- 停止并移除 systemd service/timer"
-  echo "- 删除 /usr/local/bin/esag"
+  echo "- 删除 /usr/local/bin/esag 和 /usr/bin/esag（如果存在）"
   echo "- 删除 $INSTALL_DIR"
   echo "- 删除服务用户 $SERVICE_USER（如果存在）"
   echo ""
@@ -704,10 +719,11 @@ uninstall_agent() {
   systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || true
   rm -f "/etc/systemd/system/essay-agent.service" "/etc/systemd/system/essay-agent.timer"
   systemctl daemon-reload || true
-  rm -f /usr/local/bin/esag
+  rm -f /usr/local/bin/esag /usr/bin/esag
   rm -rf "$INSTALL_DIR"
   if id "$SERVICE_USER" >/dev/null 2>&1; then userdel "$SERVICE_USER" >/dev/null 2>&1 || true; fi
   info "essay-agent 已卸载"
+  warn "如果当前 shell 仍记住旧 esag 路径，请执行：hash -r"
   exit 0
 }
 
@@ -734,13 +750,14 @@ main_menu() {
 [8] 查看数据库总览
 [9] 查看待展示池
 [10] 测试邮箱
-[11] 升级程序（保留当前配置）
-[12] 全量重配
-[13] 卸载
-[14] 目标期刊管理
-[15] 备份 / 恢复
-[16] 直接编辑 config.yaml
-[17] 直接编辑 .env
+[11] 更新 esag 控制台脚本
+[12] 升级程序（保留当前配置）
+[13] 全量重配
+[14] 卸载
+[15] 目标期刊管理
+[16] 备份 / 恢复
+[17] 直接编辑 config.yaml
+[18] 直接编辑 .env
 [0] 退出
 EOF
     echo ""
@@ -756,13 +773,14 @@ EOF
       8) inspect_db; pause ;;
       9) show_pending; pause ;;
       10) test_email; pause ;;
-      11) upgrade_program_keep_config; pause ;;
-      12) rerun_deploy; pause ;;
-      13) uninstall_agent ;;
-      14) manage_target_journals ;;
-      15) backup_restore_menu ;;
-      16) open_config_editor; pause ;;
-      17) open_env_editor; pause ;;
+      11) refresh_esag_only; pause ;;
+      12) upgrade_program_keep_config; pause ;;
+      13) rerun_deploy; pause ;;
+      14) uninstall_agent ;;
+      15) manage_target_journals ;;
+      16) backup_restore_menu ;;
+      17) open_config_editor; pause ;;
+      18) open_env_editor; pause ;;
       0) exit 0 ;;
       *) warn "无效选择"; pause ;;
     esac
