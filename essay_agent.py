@@ -60,6 +60,8 @@ def load_env() -> tuple[OpenAI, dict]:
         "max_results_per_query": int(os.getenv("MAX_RESULTS_PER_QUERY", "30")),
         "min_relevance_score": int(os.getenv("MIN_RELEVANCE_SCORE", "60")),
         "force_refresh": parse_bool(os.getenv("FORCE_REFRESH"), False),
+        "low_score_refresh_days": int(os.getenv("LOW_SCORE_REFRESH_DAYS", "3")),
+        "low_score_refresh_below": int(os.getenv("LOW_SCORE_REFRESH_BELOW", "60")),
         "email_enabled": parse_bool(os.getenv("EMAIL_ENABLED"), False),
         "email_smtp_host": os.getenv("EMAIL_SMTP_HOST", "smtp-relay.brevo.com"),
         "email_smtp_port": int(os.getenv("EMAIL_SMTP_PORT", "587")),
@@ -71,7 +73,7 @@ def load_env() -> tuple[OpenAI, dict]:
         "report_top_n": int(os.getenv("REPORT_TOP_N", "10")),
         "email_top_n": int(os.getenv("EMAIL_TOP_N", "5")),
         "pending_pool_days": int(os.getenv("PENDING_POOL_DAYS", "7")),
-        "empty_report_email": parse_bool(os.getenv("EMPTY_REPORT_EMAIL"), True),
+        "empty_report_email": parse_bool(os.getenv("EMPTY_REPORT_EMAIL"), False),
     }
 
     client_kwargs = {"api_key": api_key}
@@ -174,22 +176,24 @@ def migrate_db(conn: sqlite3.Connection):
 def get_paper_record(conn: sqlite3.Connection, url: str, doi: str = "") -> dict | None:
     if doi:
         row = conn.execute(
-            "SELECT url, doi, analysis_json, content_hash, reported_at, displayed_at FROM papers WHERE doi = ? LIMIT 1",
+            "SELECT url, doi, analysis_json, content_hash, reported_at, displayed_at, updated_at, last_seen_at FROM papers WHERE doi = ? LIMIT 1",
             (doi,),
         ).fetchone()
         if row:
             return {
                 "url": row[0], "doi": row[1], "analysis_json": row[2],
-                "content_hash": row[3], "reported_at": row[4], "displayed_at": row[5]
+                "content_hash": row[3], "reported_at": row[4], "displayed_at": row[5],
+                "updated_at": row[6], "last_seen_at": row[7],
             }
     row = conn.execute(
-        "SELECT url, doi, analysis_json, content_hash, reported_at, displayed_at FROM papers WHERE url = ? LIMIT 1",
+        "SELECT url, doi, analysis_json, content_hash, reported_at, displayed_at, updated_at, last_seen_at FROM papers WHERE url = ? LIMIT 1",
         (url,),
     ).fetchone()
     if row:
         return {
             "url": row[0], "doi": row[1], "analysis_json": row[2],
-            "content_hash": row[3], "reported_at": row[4], "displayed_at": row[5]
+            "content_hash": row[3], "reported_at": row[4], "displayed_at": row[5],
+            "updated_at": row[6], "last_seen_at": row[7],
         }
     return None
 
@@ -202,6 +206,47 @@ def get_cached_analysis(conn: sqlite3.Connection, url: str, doi: str = "") -> di
         return json.loads(record["analysis_json"])
     except Exception:
         return None
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def should_refresh_cached_analysis(record: dict | None, runtime: dict) -> bool:
+    if not record:
+        return False
+    if runtime.get("force_refresh"):
+        return True
+    analysis_json = record.get("analysis_json")
+    if not analysis_json:
+        return True
+    try:
+        analysis = json.loads(analysis_json)
+    except Exception:
+        return True
+    score = analysis.get("相关性分数")
+    if score is None:
+        return True
+    try:
+        score = int(score)
+    except Exception:
+        return True
+    threshold = int(runtime.get("low_score_refresh_below", runtime.get("min_relevance_score", 60)))
+    refresh_days = int(runtime.get("low_score_refresh_days", 3))
+    if score >= threshold:
+        return False
+    updated_at = _parse_iso_datetime(record.get("updated_at")) or _parse_iso_datetime(record.get("last_seen_at"))
+    if updated_at is None:
+        return True
+    return (datetime.now(timezone.utc) - updated_at) >= timedelta(days=refresh_days)
 
 
 def was_reported(conn: sqlite3.Connection, url: str, doi: str = "") -> bool:
@@ -881,7 +926,10 @@ def _format_stats_diagnostic(stats: dict | None) -> list[str]:
         f"  - 重复去除：{stats.get('duplicate', 0)} 篇",
         f"  - 排除关键词命中：{stats.get('excluded', 0)} 篇",
         f"  - 必含关键词未命中：{stats.get('must_have_filtered', 0)} 篇",
+        f"  - 首次见到论文：{stats.get('first_seen', 0)} 篇",
+        f"  - 历史已见论文：{stats.get('seen_before', 0)} 篇",
         f"  - 缓存命中（已分析）：{stats.get('cache_hit', 0)} 篇",
+        f"  - 低分缓存触发重分析：{stats.get('cache_refresh', 0)} 篇",
         f"  - 新分析：{stats.get('analyzed', 0)} 篇",
         f"  - 分析失败：{stats.get('analysis_failed', 0)} 篇",
         f"  - 低于相关性阈值：{stats.get('below_min_relevance', 0)} 篇",
@@ -893,14 +941,23 @@ def _format_stats_diagnostic(stats: dict | None) -> list[str]:
         lines.append("各数据源状态：")
         for key, detail in source_details.items():
             err = detail.get("error", "")
-            status = f"错误: {err}" if err else f"获取 {detail.get('fetched', 0)} 篇"
+            if err:
+                status = f"抓取失败: {err}"
+            elif detail.get("fetched", 0) == 0:
+                status = "获取 0 篇"
+            else:
+                status = f"获取 {detail.get('fetched', 0)} 篇"
             lines.append(f"  - {key}: {status}")
     lines.append("")
     fetched = stats.get("fetched", 0)
     if fetched == 0:
         lines.append("可能原因：所有数据源均未返回结果，请检查网络连通性和 API 可用性。")
+    elif stats.get("cache_hit", 0) > 0 and stats.get("analyzed", 0) == 0:
+        lines.append("可能原因：今日候选主要来自历史缓存结果，未触发新的 AI 分析；请检查缓存重分析策略或数据源新鲜度。")
+    elif stats.get("first_seen", 0) == 0 and stats.get("seen_before", 0) > 0:
+        lines.append("可能原因：今日进入候选池的论文几乎全部都在历史中见过，候选集合可能已冻结或高度重复。")
     elif stats.get("too_old", 0) > fetched * 0.5:
-        lines.append("可能原因：大量论文因日期过旧被过滤，考虑增大 DAYS_BACK。")
+        lines.append("可能原因：大量论文因日期过旧被过滤；这可能是时间窗口偏窄，也可能是数据源返回结果本身较旧。")
     elif stats.get("below_min_relevance", 0) > 0:
         lines.append("可能原因：论文未达到相关性阈值，考虑降低 MIN_RELEVANCE_SCORE。")
     elif stats.get("analysis_failed", 0) > 0:
@@ -919,6 +976,8 @@ def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5, stats: di
 
     if df.empty:
         lines.append("今天没有符合条件的新论文进入最终收录。")
+        if stats and stats.get("cache_hit", 0) > 0 and stats.get("analyzed", 0) == 0:
+            lines.append("今日候选主要来自历史缓存结果，未触发新的 AI 分析。")
         lines.append("")
         lines.extend(_format_stats_diagnostic(stats))
         return "\n".join(lines)
@@ -1083,7 +1142,10 @@ def main():
         "duplicate": 0,
         "excluded": 0,
         "must_have_filtered": 0,
+        "first_seen": 0,
+        "seen_before": 0,
         "cache_hit": 0,
+        "cache_refresh": 0,
         "analyzed": 0,
         "analysis_success": 0,
         "analysis_failed": 0,
@@ -1151,14 +1213,23 @@ def main():
                 short_abstract = truncate_text(abstract, max_chars_per_paper)
                 content_hash = hashlib.sha256(f"{title}\n{short_abstract}".encode("utf-8", errors="ignore")).hexdigest()
 
-                record = None if force_refresh else get_paper_record(conn, url, item.get("doi", ""))
+                record = get_paper_record(conn, url, item.get("doi", ""))
+                if record:
+                    stats["seen_before"] += 1
+                else:
+                    stats["first_seen"] += 1
                 cached = None
+                refresh_cache = False
                 if record and record.get("content_hash") == content_hash:
-                    cached = get_cached_analysis(conn, url, item.get("doi", ""))
+                    refresh_cache = should_refresh_cached_analysis(record, runtime)
+                    if not refresh_cache:
+                        cached = get_cached_analysis(conn, url, item.get("doi", ""))
                 if cached:
                     analysis = cached
                     stats["cache_hit"] += 1
                 else:
+                    if refresh_cache:
+                        stats["cache_refresh"] += 1
                     analysis = analyze_paper(
                         client=client,
                         model=openai_model,
@@ -1255,14 +1326,23 @@ def main():
             short_abstract = truncate_text(abstract, max_chars_per_paper)
             content_hash = hashlib.sha256(f"{title}\n{short_abstract}".encode("utf-8", errors="ignore")).hexdigest()
 
-            record = None if force_refresh else get_paper_record(conn, url, item.get("doi", ""))
+            record = get_paper_record(conn, url, item.get("doi", ""))
+            if record:
+                stats["seen_before"] += 1
+            else:
+                stats["first_seen"] += 1
             cached = None
+            refresh_cache = False
             if record and record.get("content_hash") == content_hash:
-                cached = get_cached_analysis(conn, url, item.get("doi", ""))
+                refresh_cache = should_refresh_cached_analysis(record, runtime)
+                if not refresh_cache:
+                    cached = get_cached_analysis(conn, url, item.get("doi", ""))
             if cached:
                 analysis = cached
                 stats["cache_hit"] += 1
             else:
+                if refresh_cache:
+                    stats["cache_refresh"] += 1
                 analysis = analyze_paper(
                     client=client,
                     model=openai_model,

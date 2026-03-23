@@ -672,23 +672,26 @@ journalctl -u essay-agent -f
 
 ## 18. 新手推荐默认配置
 
-第一次运行建议先保守一点：
+第一次运行建议使用下面这组更稳妥的默认配置：
 
 ```env
 OPENAI_MODEL=gpt-4.1-mini
-DAYS_BACK=1
-MAX_RESULTS_PER_QUERY=10
-MIN_RELEVANCE_SCORE=60
+DAYS_BACK=3
+MAX_RESULTS_PER_QUERY=25
+MIN_RELEVANCE_SCORE=55
 FORCE_REFRESH=false
+LOW_SCORE_REFRESH_DAYS=3
+LOW_SCORE_REFRESH_BELOW=60
 EMAIL_ENABLED=false
+EMPTY_REPORT_EMAIL=false
 ```
 
 这样做的好处是：
 
-- 成本更低
-- 更容易排错
-- 首次运行更快
-- 结果噪音更少
+- 依然能控制 API 成本
+- 不容易被旧的低分缓存结果长期冻住
+- 可以减少重复的空日报
+- 略宽一点的时间窗更适合首次排查问题
 
 ---
 

@@ -717,30 +717,33 @@ journalctl -u essay-agent -f
 
 ## 18. Suggested Beginner Setup / 新手建议配置
 
-If you are running this for the first time, start small:
+If you are running this for the first time, use this safer starter setup:
 
 ```env
 OPENAI_MODEL=gpt-4.1-mini
-DAYS_BACK=1
-MAX_RESULTS_PER_QUERY=10
-MIN_RELEVANCE_SCORE=60
+DAYS_BACK=3
+MAX_RESULTS_PER_QUERY=25
+MIN_RELEVANCE_SCORE=55
 FORCE_REFRESH=false
+LOW_SCORE_REFRESH_DAYS=3
+LOW_SCORE_REFRESH_BELOW=60
 EMAIL_ENABLED=false
+EMPTY_REPORT_EMAIL=false
 ```
 
 Why this is recommended:
 
-- lower API cost
-- easier debugging
-- faster first run
-- less noise in results
+- still keeps API cost under control
+- less likely to freeze on old low-score cache results
+- reduces repeated empty daily emails
+- gives a slightly wider recent-paper window for debugging
 
 推荐原因：
 
-- API 成本更低
-- 更容易排查问题
-- 第一次运行更快
-- 结果噪音更少
+- 依然能控制 API 成本
+- 不容易被旧的低分缓存结果“冻住”
+- 可以减少重复的空日报
+- 略宽一点的近期时间窗更适合排查问题
 
 ---
 
