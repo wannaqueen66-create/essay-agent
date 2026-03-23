@@ -171,29 +171,30 @@ def migrate_db(conn: sqlite3.Connection):
     ensure_column(conn, "papers", "reported_at", "reported_at TEXT")
     ensure_column(conn, "papers", "report_count", "report_count INTEGER DEFAULT 0")
     ensure_column(conn, "papers", "content_hash", "content_hash TEXT")
+    ensure_column(conn, "papers", "analyzed_at", "analyzed_at TEXT")
 
 
 def get_paper_record(conn: sqlite3.Connection, url: str, doi: str = "") -> dict | None:
     if doi:
         row = conn.execute(
-            "SELECT url, doi, analysis_json, content_hash, reported_at, displayed_at, updated_at, last_seen_at FROM papers WHERE doi = ? LIMIT 1",
+            "SELECT url, doi, analysis_json, content_hash, reported_at, displayed_at, updated_at, last_seen_at, analyzed_at FROM papers WHERE doi = ? LIMIT 1",
             (doi,),
         ).fetchone()
         if row:
             return {
                 "url": row[0], "doi": row[1], "analysis_json": row[2],
                 "content_hash": row[3], "reported_at": row[4], "displayed_at": row[5],
-                "updated_at": row[6], "last_seen_at": row[7],
+                "updated_at": row[6], "last_seen_at": row[7], "analyzed_at": row[8],
             }
     row = conn.execute(
-        "SELECT url, doi, analysis_json, content_hash, reported_at, displayed_at, updated_at, last_seen_at FROM papers WHERE url = ? LIMIT 1",
+        "SELECT url, doi, analysis_json, content_hash, reported_at, displayed_at, updated_at, last_seen_at, analyzed_at FROM papers WHERE url = ? LIMIT 1",
         (url,),
     ).fetchone()
     if row:
         return {
             "url": row[0], "doi": row[1], "analysis_json": row[2],
             "content_hash": row[3], "reported_at": row[4], "displayed_at": row[5],
-            "updated_at": row[6], "last_seen_at": row[7],
+            "updated_at": row[6], "last_seen_at": row[7], "analyzed_at": row[8],
         }
     return None
 
@@ -243,7 +244,7 @@ def should_refresh_cached_analysis(record: dict | None, runtime: dict) -> bool:
     refresh_days = int(runtime.get("low_score_refresh_days", 3))
     if score >= threshold:
         return False
-    updated_at = _parse_iso_datetime(record.get("updated_at")) or _parse_iso_datetime(record.get("last_seen_at"))
+    updated_at = _parse_iso_datetime(record.get("analyzed_at")) or _parse_iso_datetime(record.get("updated_at")) or _parse_iso_datetime(record.get("last_seen_at"))
     if updated_at is None:
         return True
     return (datetime.now(timezone.utc) - updated_at) >= timedelta(days=refresh_days)
@@ -378,6 +379,7 @@ def upsert_paper(
     meets_threshold: bool,
     eligible_for_pending: bool,
     content_hash: str,
+    analyzed_at: str | None = None,
 ):
     now = datetime.now().isoformat(timespec="seconds")
     if doi:
@@ -399,8 +401,8 @@ def upsert_paper(
         INSERT INTO papers (
             url, doi, source, title, english_abstract, chinese_summary, published_date, query_name, authors,
             primary_category, categories, analysis_json, related_score, analysis_status, meets_threshold,
-            eligible_for_pending, first_seen_at, last_seen_at, displayed_at, display_count, reported_at, report_count, content_hash, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            eligible_for_pending, first_seen_at, last_seen_at, displayed_at, display_count, reported_at, report_count, content_hash, created_at, updated_at, analyzed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(url) DO UPDATE SET
             doi=excluded.doi,
             source=excluded.source,
@@ -419,7 +421,8 @@ def upsert_paper(
             eligible_for_pending=excluded.eligible_for_pending,
             last_seen_at=excluded.last_seen_at,
             content_hash=excluded.content_hash,
-            updated_at=excluded.updated_at
+            updated_at=excluded.updated_at,
+            analyzed_at=COALESCE(excluded.analyzed_at, papers.analyzed_at)
         """,
         (
             url,
@@ -447,6 +450,7 @@ def upsert_paper(
             content_hash,
             now,
             now,
+            analyzed_at,
         ),
     )
 
@@ -1266,6 +1270,7 @@ def main():
                     meets_threshold=meets_threshold,
                     eligible_for_pending=eligible_for_pending,
                     content_hash=content_hash,
+                    analyzed_at=datetime.now().isoformat(timespec="seconds") if not cached else None,
                 )
 
                 if not meets_threshold:
@@ -1380,6 +1385,7 @@ def main():
                 meets_threshold=meets_threshold,
                 eligible_for_pending=eligible_for_pending,
                 content_hash=content_hash,
+                analyzed_at=datetime.now().isoformat(timespec="seconds") if not cached else None,
             )
 
             if not meets_threshold:
