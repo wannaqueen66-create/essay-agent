@@ -1,6 +1,6 @@
 # ============================================================
-# config.yaml  (arXiv 自动检索 + AI结构化分析：建筑学/体育空间/VR/轨迹)
-# 用途：每天自动抓 arXiv 新论文，并提取 IV/DV/方法/结论（可扩展到 EEG/眼动）
+# config.yaml  (arXiv 自动检索 + AI结构化分析：建筑学/体育空间/VR/轨迹/疗愈空间)
+# 用途：每天自动抓 arXiv 新论文，并提取 IV/DV/方法/结论（可扩展到 EEG/眼动/疗愈环境）
 #
 # YAML 注释用 #；你只需要改：queries 里的关键词/类别，或输出/模型参数
 # ============================================================
@@ -72,6 +72,16 @@ queries:
     (trajectory OR mobility OR spatiotemporal OR "space use" OR "occupant behavior"
      OR "virtual reality" OR VR OR affordance OR "spatial perception")
 
+  # 5) 疗愈空间 / healing environment / restorative design
+  healing_space: >
+    (cat:cs.HC OR cat:physics.soc-ph OR cat:stat.AP OR cat:q-bio.NC)
+    AND
+    ("healing space" OR "healing environment" OR "therapeutic environment"
+     OR "restorative environment" OR "restorative design" OR "salutogenic design"
+     OR "biophilic design" OR "therapeutic landscape" OR "healing garden"
+     OR "healing architecture" OR "health-promoting environment"
+     OR "stress recovery" OR "attention restoration" OR "nature-based therapy")
+
 # -----------------------------
 # 通用文献源专用检索式
 # 说明：供 OpenAlex / Crossref / Semantic Scholar 使用
@@ -110,6 +120,17 @@ generic_queries:
     AND
     (mobility OR spatiotemporal OR trajectory OR "space use" OR "occupant behavior"
      OR "virtual reality" OR VR OR affordance OR "spatial perception" OR gaze OR EEG)
+
+  healing_space: >
+    ("healing space" OR "healing environment" OR "therapeutic environment"
+     OR "restorative environment" OR "restorative design" OR "salutogenic design"
+     OR "biophilic design" OR "therapeutic landscape" OR "healing garden"
+     OR "healing architecture" OR "health-promoting environment")
+    AND
+    ("stress recovery" OR "attention restoration" OR "nature-based therapy"
+     OR "well-being" OR wellbeing OR "mental health" OR "perceived restorativeness"
+     OR "environmental psychology" OR "spatial perception" OR "built environment"
+     OR architecture OR indoor OR hospital OR healthcare OR "green space")
 
 # -----------------------------
 # （可选）过滤设置：减少“纯算法论文”噪音
@@ -166,6 +187,23 @@ journal_filter_keywords:
   - "stadium"
   - "gymnasium"
   - "campus"
+  - "healing space"
+  - "healing environment"
+  - "therapeutic environment"
+  - "restorative environment"
+  - "restorative design"
+  - "salutogenic"
+  - "biophilic design"
+  - "therapeutic landscape"
+  - "healing garden"
+  - "healing architecture"
+  - "stress recovery"
+  - "attention restoration"
+  - "well-being"
+  - "wellbeing"
+  - "perceived restorativeness"
+  - "nature-based therapy"
+  - "health-promoting"
 target_journals:
 
   # --- 建筑环境与空间行为 ---
@@ -199,6 +237,18 @@ target_journals:
     issn: "1071-5819"
   - name: "Presence Teleoperators and Virtual Environments"
     issn: "1054-7460"
+
+  # --- 疗愈空间 / 恢复性环境 / 健康促进设计 ---
+  - name: "Health Environments Research and Design Journal"
+    issn: "1937-5867"
+  - name: "Health and Place"
+    issn: "1353-8292"
+  - name: "Landscape and Urban Planning"
+    issn: "0169-2046"
+  - name: "Urban Forestry and Urban Greening"
+    issn: "1618-8667"
+  - name: "International Journal of Environmental Research and Public Health"
+    issn: "1661-7827"
 
   # --- 行为轨迹 / 时空行为 / 城市空间 ---
   - name: "Transportation Research Part C"

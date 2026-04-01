@@ -1,7 +1,7 @@
 # essay-agent / Essay Agent
 
-> A complete, newbie-friendly academic monitoring and AI analysis toolkit for architecture, sports space, VR environments, spatial behavior, and behavior trajectory research.  
-> 一个面向建筑学、体育空间、VR 环境、空间行为与行为轨迹研究的完整文献监测与 AI 结构化分析工具，强调**结构完整、信息充分、对新手友好**。
+> A complete, newbie-friendly academic monitoring and AI analysis toolkit for architecture, sports space, VR environments, spatial behavior, behavior trajectory, and healing space research.  
+> 一个面向建筑学、体育空间、VR 环境、空间行为、行为轨迹与疗愈空间研究的完整文献监测与 AI 结构化分析工具，强调**结构完整、信息充分、对新手友好**。
 
 ---
 
@@ -47,6 +47,7 @@ It is especially suitable for topics such as:
 - behavioral trajectory / 行为轨迹
 - environmental perception / 环境感知
 - VR + EEG / eye tracking related studies / VR + EEG / 眼动相关研究
+- healing space / restorative environments / 疗愈空间 / 恢复性环境
 
 ---
 
@@ -56,7 +57,7 @@ This project is especially suitable for:
 
 - researchers who need daily paper monitoring;
 - users who want Chinese summaries instead of reading every abstract manually;
-- architecture / sports space / behavior / VR researchers;
+- architecture / sports space / behavior / VR / healing space researchers;
 - VPS users who want a low-maintenance scheduled workflow;
 - people who prefer a **copy-one-command-and-deploy** style setup.
 
@@ -64,7 +65,7 @@ This project is especially suitable for:
 
 - 需要每天监测新论文的研究者；
 - 希望先看中文摘要，而不是逐篇手动读英文摘要的人；
-- 建筑学 / 体育空间 / 空间行为 / VR 方向的研究者；
+- 建筑学 / 体育空间 / 空间行为 / VR / 疗愈空间方向的研究者；
 - 想把任务稳定跑在 VPS 上的人；
 - 喜欢“复制一条命令就部署”的使用方式的人。
 
@@ -191,6 +192,7 @@ Pre-configured examples include journals from:
 - sports science and sports space
 - VR / HCI / perception
 - mobility / trajectory / urban space
+- healing space / restorative environments / health-promoting design (including Health Environments Research and Design Journal, Health and Place, Landscape and Urban Planning)
 
 具体列表请查看 `config.yaml` 中的 `target_journals`。
 
