@@ -87,6 +87,41 @@ def ensure_output_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 
+def cleanup_old_outputs(path: str, keep_days: int = 30) -> int:
+    if keep_days <= 0 or not os.path.isdir(path):
+        return 0
+    cutoff = time.time() - keep_days * 86400
+    removed = 0
+    for name in os.listdir(path):
+        if not name.startswith("essay_daily_"):
+            continue
+        file_path = os.path.join(path, name)
+        if not os.path.isfile(file_path):
+            continue
+        try:
+            if os.path.getmtime(file_path) < cutoff:
+                os.remove(file_path)
+                removed += 1
+        except Exception:
+            logger.exception("清理旧输出文件失败：%s", file_path)
+    return removed
+
+
+def human_summary_for_empty_report(stats: dict | None) -> str:
+    if not stats:
+        return "今天没有符合条件的新论文进入最终收录。"
+    too_old = stats.get("too_old", 0)
+    below = stats.get("below_min_relevance", 0)
+    reported = stats.get("already_reported", 0)
+    if below > 0 and too_old > 0:
+        return "今天有抓到论文，但大多要么发布时间较早，要么相关性不够高，所以没有新的最终收录。"
+    if below > 0:
+        return "今天有抓到论文，但整体相关性偏低，所以没有新的最终收录。"
+    if reported > 0:
+        return "今天有符合条件的论文，但已在之前的报告中展示过，所以没有新增收录。"
+    return "今天没有符合条件的新论文进入最终收录。"
+
+
 def truncate_text(text: str, max_chars: int) -> str:
     if not text:
         return ""
@@ -829,6 +864,11 @@ def fetch_source_results(source_name: str, query_text: str, max_results: int) ->
 def resolve_query_for_source(source_name: str, query_name: str, queries: dict, generic_queries: dict) -> str:
     if source_name == "arxiv":
         return queries.get(query_name, "")
+    if source_name == "semantic_scholar":
+        # Semantic Scholar API works best with short natural-language queries
+        ss_queries = generic_queries.get("_semantic_scholar", {})
+        if isinstance(ss_queries, dict) and query_name in ss_queries:
+            return ss_queries[query_name]
     return generic_queries.get(query_name) or queries.get(query_name, "")
 
 
@@ -965,28 +1005,34 @@ def _format_stats_diagnostic(stats: dict | None) -> list[str]:
             lines.append(f"  - {key}: {status}")
     lines.append("")
     fetched = stats.get("fetched", 0)
+    reasons = []
     if fetched == 0:
-        lines.append("可能原因:所有数据源均未返回结果,请检查网络连通性和 API 可用性。")
-    elif stats.get("cache_hit", 0) > 0 and stats.get("analyzed", 0) == 0:
-        lines.append("可能原因:今日候选主要来自历史缓存结果,未触发新的 AI 分析;请检查缓存重分析策略或数据源新鲜度。")
-    elif stats.get("first_seen", 0) == 0 and stats.get("seen_before", 0) > 0:
-        lines.append("可能原因:今日进入候选池的论文几乎全部都在历史中见过,候选集合可能已冻结或高度重复。")
-    elif stats.get("too_old", 0) > fetched * 0.5:
-        lines.append("可能原因:大量论文因日期过旧被过滤;这可能是时间窗口偏窄,也可能是数据源返回结果本身较旧。")
-    elif stats.get("below_min_relevance", 0) > 0:
-        lines.append("可能原因:论文未达到相关性阈值,考虑降低 MIN_RELEVANCE_SCORE。")
-    elif stats.get("analysis_failed", 0) > 0:
-        lines.append("可能原因:AI 分析失败较多,请检查 OpenAI API key 和模型可用性。")
-    elif stats.get("excluded", 0) > fetched * 0.3:
-        lines.append("可能原因:大量论文被排除关键词过滤,检查 exclude_keywords 是否过于宽泛。")
-    elif stats.get("already_reported", 0) > 0:
-        lines.append("可能原因:符合条件的论文已在之前报告中展示过。")
+        reasons.append("所有数据源均未返回结果，请检查网络连通性和 API 可用性。")
+    else:
+        if stats.get("cache_hit", 0) > 0 and stats.get("analyzed", 0) == 0:
+            reasons.append("今日候选主要来自历史缓存结果，未触发新的 AI 分析。")
+        if stats.get("first_seen", 0) == 0 and stats.get("seen_before", 0) > 0:
+            reasons.append("今日候选论文几乎全部在历史中见过，候选集合高度重复。")
+        if stats.get("too_old", 0) > fetched * 0.5:
+            reasons.append("大量论文因日期过旧被过滤，可考虑增大 DAYS_BACK。")
+        if stats.get("below_min_relevance", 0) > 0:
+            reasons.append(f"有 {stats.get('below_min_relevance', 0)} 篇低于相关性阈值，可考虑降低 MIN_RELEVANCE_SCORE。")
+        if stats.get("analysis_failed", 0) > 0:
+            reasons.append("AI 分析失败较多，请检查 API key 和模型可用性。")
+        if stats.get("excluded", 0) > fetched * 0.3:
+            reasons.append("大量论文被排除关键词过滤，检查 exclude_keywords 是否过于宽泛。")
+        if stats.get("already_reported", 0) > 0:
+            reasons.append(f"有 {stats.get('already_reported', 0)} 篇已在之前报告中展示过。")
+    if reasons:
+        lines.append("可能原因：")
+        for r in reasons:
+            lines.append(f"  - {r}")
     return lines
 
 
 def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5, stats: dict | None = None) -> str:
     lines = []
-    lines.append(f"essay_agent 文献简报|{today_str}")
+    lines.append(f"essay_agent 文献简报｜{today_str}")
     lines.append("")
 
     if df.empty:
@@ -1069,7 +1115,7 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
         f.write(f"# 文献简报({today_str})\n\n")
 
         if df.empty:
-            f.write("今天没有符合条件的新论文进入最终收录。\n\n")
+            f.write(human_summary_for_empty_report(stats) + "\n\n")
             for line in _format_stats_diagnostic(stats):
                 f.write(f"{line}\n")
             return
@@ -1119,6 +1165,7 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
 
 
 def main():
+    start_time = time.time()
     logger.info("essay_agent started")
 
     config = load_config("config.yaml")
@@ -1448,7 +1495,7 @@ def main():
 
     if runtime.get("email_enabled") and (not df.empty or runtime.get("empty_report_email", True)):
         try:
-            email_subject = f"[essay_agent] 文献简报 {today_str}|收录 {len(df)} 篇"
+            email_subject = f"[essay_agent] 文献简报 {today_str}｜收录 {len(df)} 篇"
             email_body = build_email_body(df, today_str, runtime.get("email_top_n", 5), stats=stats)
             send_email_via_brevo(
                 runtime=runtime,
@@ -1467,8 +1514,13 @@ def main():
     else:
         logger.info("已生成 Excel:%s", excel_path)
     logger.info("已生成 Markdown:%s", md_path)
+    removed_outputs = cleanup_old_outputs(output_dir, int(os.getenv("OUTPUT_RETENTION_DAYS", "30")))
+    if removed_outputs > 0:
+        logger.info("已清理旧输出文件：%d 个", removed_outputs)
     logger.info("已生成统计:%s", stats_path)
-    logger.info("运行统计:%s", stats)
+    logger.info("运行统计：%s", stats)
+    elapsed = time.time() - start_time
+    logger.info("总耗时：%.1f 秒（%.1f 分钟）", elapsed, elapsed / 60)
 
 
 if __name__ == "__main__":

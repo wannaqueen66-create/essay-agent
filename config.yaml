@@ -132,6 +132,16 @@ generic_queries:
      OR "environmental psychology" OR "spatial perception" OR "built environment"
      OR architecture OR indoor OR hospital OR healthcare OR "green space")
 
+# Semantic Scholar 专用精简检索式
+# 说明：SS API 对长布尔表达式支持差，用简短自然语言效果更好
+# 在 generic_queries 下用 _semantic_scholar 子键存放
+  _semantic_scholar:
+    spatial_behavior: "spatial behavior occupant built environment indoor architecture"
+    vr_environment: "virtual reality EEG eye tracking spatial perception built environment"
+    mobility_trajectory: "human mobility trajectory spatiotemporal movement pattern"
+    sports_space_optional: "sports facility stadium gymnasium spatial behavior VR"
+    healing_space: "healing space restorative environment biophilic design therapeutic landscape"
+
 # -----------------------------
 # （可选）过滤设置：减少“纯算法论文”噪音
 # 说明：如果你发现抓到太多 CV/深度学习纯算法，可以加上 NOT 关键词
