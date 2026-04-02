@@ -50,7 +50,7 @@ def load_env() -> tuple[OpenAI, dict]:
     load_dotenv()
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError("没有读取到 OPENAI_API_KEY，请检查 .env 文件。")
+        raise ValueError("没有读取到 OPENAI_API_KEY,请检查 .env 文件。")
 
     base_url = os.getenv("OPENAI_BASE_URL", "").strip()
 
@@ -353,7 +353,7 @@ def load_pending_pool(conn: sqlite3.Connection, days: int, limit: int) -> list[d
                 "研究方法": analysis.get("研究方法", ""),
                 "数据/样本": analysis.get("数据/样本", ""),
                 "主要结论": analysis.get("主要结论", ""),
-                "与建筑/体育空间研究相关性": analysis.get("与建筑/体育空间研究相关性", ""),
+                "与建筑/体育空间/疗愈环境研究相关性": analysis.get("与建筑/体育空间/疗愈环境研究相关性", ""),
                 "相关性分数": row[12],
                 "可借鉴启发": analysis.get("可借鉴启发", ""),
                 "原始分析": analysis.get("原始分析", ""),
@@ -468,7 +468,7 @@ def parse_analysis_text(text: str) -> dict:
         "研究方法": "",
         "数据/样本": "",
         "主要结论": "",
-        "与建筑/体育空间研究相关性": "",
+        "与建筑/体育空间/疗愈环境研究相关性": "",
         "相关性分数": 0,
         "可借鉴启发": "",
         "原始分析": text,
@@ -484,9 +484,9 @@ def parse_analysis_text(text: str) -> dict:
         for key in list(result.keys()):
             if key == "原始分析":
                 continue
-            if line.startswith(f"{key}：") or line.startswith(f"{key}:"):
+            if line.startswith(f"{key}:") or line.startswith(f"{key}:"):
                 current_key = key
-                value = line.split("：", 1)[-1] if "：" in line else line.split(":", 1)[-1]
+                value = line.split(":", 1)[-1] if ":" in line else line.split(":", 1)[-1]
                 value = value.strip()
                 if key == "相关性分数":
                     try:
@@ -507,15 +507,16 @@ def parse_analysis_text(text: str) -> dict:
 
 def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3) -> dict:
     prompt = f"""
-你是一个“建筑学 / 体育空间 / VR环境 / 行为轨迹”方向的科研文献分析助手。
+你是一个"建筑学 / 体育空间 / VR环境 / 行为轨迹 / 疗愈空间"方向的科研文献分析助手。
 请根据下面论文标题和英文摘要，输出适合空间研究者使用的结构化信息。
 
 要求：
 1. 用简洁中文。
-2. 先给出一句“中文摘要”。
-3. 如果摘要没有明确写出，就写“未明确说明”，不要瞎编。
-4. “相关性分数”请按 0-100 打分。
-5. 特别关注：空间类型、研究场景、行为变量、生理指标、VR/轨迹方法、是否能迁移到建筑/体育空间研究。
+2. 先给出一句"中文摘要"。
+3. 如果摘要没有明确写出，就写"未明确说明"，不要瞎编。
+4. "相关性分数"请按 0-100 打分。
+5. 特别关注：空间类型、研究场景、行为变量、生理指标、VR/轨迹方法、是否能迁移到建筑/体育空间/疗愈环境研究。
+6. 疗愈空间方向重点关注：healing space、restorative environment、biophilic design、therapeutic landscape、healing garden、salutogenic design、stress recovery、attention restoration、nature-based therapy、健康促进环境设计等。这类论文应获得较高相关性分数。
 
 请严格按下面格式输出：
 
@@ -530,13 +531,13 @@ def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries
 研究方法：
 数据/样本：
 主要结论：
-与建筑/体育空间研究相关性：
+与建筑/体育空间/疗愈环境研究相关性：
 相关性分数：
-可借鉴启发：
+可借鉴启发:
 
-标题：{title}
+标题:{title}
 
-英文摘要：{abstract}
+英文摘要:{abstract}
 """
 
     last_error = None
@@ -568,10 +569,10 @@ def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries
         "研究方法": "",
         "数据/样本": "",
         "主要结论": "",
-        "与建筑/体育空间研究相关性": "",
+        "与建筑/体育空间/疗愈环境研究相关性": "",
         "相关性分数": 0,
         "可借鉴启发": "",
-        "原始分析": f"分析失败：{last_error}",
+        "原始分析": f"分析失败:{last_error}",
         "分析状态": "failed",
     }
 
@@ -585,31 +586,41 @@ def normalize_date(value: str) -> str:
         return value[:10]
 
 
-def fetch_arxiv_results(query_text: str, max_results: int) -> list[dict]:
-    items = []
-    search = arxiv.Search(
-        query=query_text,
-        max_results=max_results,
-        sort_by=arxiv.SortCriterion.SubmittedDate,
-    )
-    for result in search.results():
-        published = result.published
-        if published.tzinfo is None:
-            published = published.replace(tzinfo=timezone.utc)
-        items.append(
-            {
-                "source": "arxiv",
-                "doi": normalize_doi(getattr(result, 'doi', '') or ''),
-                "title": (result.title or "").strip(),
-                "abstract": (result.summary or "").strip(),
-                "url": result.entry_id,
-                "published": published,
-                "authors": [a.name for a in getattr(result, "authors", [])],
-                "primary_category": getattr(result, "primary_category", "") or "",
-                "categories": getattr(result, "categories", []) or [],
-            }
-        )
-    return items
+def fetch_arxiv_results(query_text: str, max_results: int, retries: int = 3) -> list[dict]:
+    for attempt in range(1, retries + 1):
+        try:
+            items = []
+            search = arxiv.Search(
+                query=query_text,
+                max_results=max_results,
+                sort_by=arxiv.SortCriterion.SubmittedDate,
+            )
+            for result in search.results():
+                published = result.published
+                if published.tzinfo is None:
+                    published = published.replace(tzinfo=timezone.utc)
+                items.append(
+                    {
+                        "source": "arxiv",
+                        "doi": normalize_doi(getattr(result, 'doi', '') or ''),
+                        "title": (result.title or "").strip(),
+                        "abstract": (result.summary or "").strip(),
+                        "url": result.entry_id,
+                        "published": published,
+                        "authors": [a.name for a in getattr(result, "authors", [])],
+                        "primary_category": getattr(result, "primary_category", "") or "",
+                        "categories": getattr(result, "categories", []) or [],
+                    }
+                )
+            return items
+        except Exception as e:
+            if attempt < retries and "503" in str(e):
+                wait = 5 * (2 ** (attempt - 1))
+                logger.warning("arXiv 503 限流，%d秒后重试 (%d/%d)", wait, attempt, retries)
+                time.sleep(wait)
+            else:
+                raise
+    return []
 
 
 def fetch_openalex_results(query_text: str, max_results: int) -> list[dict]:
@@ -913,7 +924,7 @@ def result_to_row(query_name: str, item: dict, analysis: dict) -> dict:
         "研究方法": analysis["研究方法"],
         "数据/样本": analysis["数据/样本"],
         "主要结论": analysis["主要结论"],
-        "与建筑/体育空间研究相关性": analysis["与建筑/体育空间研究相关性"],
+        "与建筑/体育空间/疗愈环境研究相关性": analysis["与建筑/体育空间/疗愈环境研究相关性"],
         "相关性分数": analysis["相关性分数"],
         "可借鉴启发": analysis["可借鉴启发"],
         "原始分析": analysis["原始分析"],
@@ -922,27 +933,27 @@ def result_to_row(query_name: str, item: dict, analysis: dict) -> dict:
 
 def _format_stats_diagnostic(stats: dict | None) -> list[str]:
     if not stats:
-        return ["（无运行统计信息）"]
+        return ["(无运行统计信息)"]
     lines = [
-        "本次运行诊断：",
-        f"  - 总抓取：{stats.get('fetched', 0)} 篇",
-        f"  - 日期过旧被过滤：{stats.get('too_old', 0)} 篇",
-        f"  - 重复去除：{stats.get('duplicate', 0)} 篇",
-        f"  - 排除关键词命中：{stats.get('excluded', 0)} 篇",
-        f"  - 必含关键词未命中：{stats.get('must_have_filtered', 0)} 篇",
-        f"  - 首次见到论文：{stats.get('first_seen', 0)} 篇",
-        f"  - 历史已见论文：{stats.get('seen_before', 0)} 篇",
-        f"  - 缓存命中（已分析）：{stats.get('cache_hit', 0)} 篇",
-        f"  - 低分缓存触发重分析：{stats.get('cache_refresh', 0)} 篇",
-        f"  - 新分析：{stats.get('analyzed', 0)} 篇",
-        f"  - 分析失败：{stats.get('analysis_failed', 0)} 篇",
-        f"  - 低于相关性阈值：{stats.get('below_min_relevance', 0)} 篇",
-        f"  - 已报告/已展示：{stats.get('already_reported', 0)} 篇",
+        "本次运行诊断:",
+        f"  - 总抓取:{stats.get('fetched', 0)} 篇",
+        f"  - 日期过旧被过滤:{stats.get('too_old', 0)} 篇",
+        f"  - 重复去除:{stats.get('duplicate', 0)} 篇",
+        f"  - 排除关键词命中:{stats.get('excluded', 0)} 篇",
+        f"  - 必含关键词未命中:{stats.get('must_have_filtered', 0)} 篇",
+        f"  - 首次见到论文:{stats.get('first_seen', 0)} 篇",
+        f"  - 历史已见论文:{stats.get('seen_before', 0)} 篇",
+        f"  - 缓存命中(已分析):{stats.get('cache_hit', 0)} 篇",
+        f"  - 低分缓存触发重分析:{stats.get('cache_refresh', 0)} 篇",
+        f"  - 新分析:{stats.get('analyzed', 0)} 篇",
+        f"  - 分析失败:{stats.get('analysis_failed', 0)} 篇",
+        f"  - 低于相关性阈值:{stats.get('below_min_relevance', 0)} 篇",
+        f"  - 已报告/已展示:{stats.get('already_reported', 0)} 篇",
     ]
     source_details = stats.get("source_details", {})
     if source_details:
         lines.append("")
-        lines.append("各数据源状态：")
+        lines.append("各数据源状态:")
         for key, detail in source_details.items():
             err = detail.get("error", "")
             if err:
@@ -955,40 +966,40 @@ def _format_stats_diagnostic(stats: dict | None) -> list[str]:
     lines.append("")
     fetched = stats.get("fetched", 0)
     if fetched == 0:
-        lines.append("可能原因：所有数据源均未返回结果，请检查网络连通性和 API 可用性。")
+        lines.append("可能原因:所有数据源均未返回结果,请检查网络连通性和 API 可用性。")
     elif stats.get("cache_hit", 0) > 0 and stats.get("analyzed", 0) == 0:
-        lines.append("可能原因：今日候选主要来自历史缓存结果，未触发新的 AI 分析；请检查缓存重分析策略或数据源新鲜度。")
+        lines.append("可能原因:今日候选主要来自历史缓存结果,未触发新的 AI 分析;请检查缓存重分析策略或数据源新鲜度。")
     elif stats.get("first_seen", 0) == 0 and stats.get("seen_before", 0) > 0:
-        lines.append("可能原因：今日进入候选池的论文几乎全部都在历史中见过，候选集合可能已冻结或高度重复。")
+        lines.append("可能原因:今日进入候选池的论文几乎全部都在历史中见过,候选集合可能已冻结或高度重复。")
     elif stats.get("too_old", 0) > fetched * 0.5:
-        lines.append("可能原因：大量论文因日期过旧被过滤；这可能是时间窗口偏窄，也可能是数据源返回结果本身较旧。")
+        lines.append("可能原因:大量论文因日期过旧被过滤;这可能是时间窗口偏窄,也可能是数据源返回结果本身较旧。")
     elif stats.get("below_min_relevance", 0) > 0:
-        lines.append("可能原因：论文未达到相关性阈值，考虑降低 MIN_RELEVANCE_SCORE。")
+        lines.append("可能原因:论文未达到相关性阈值,考虑降低 MIN_RELEVANCE_SCORE。")
     elif stats.get("analysis_failed", 0) > 0:
-        lines.append("可能原因：AI 分析失败较多，请检查 OpenAI API key 和模型可用性。")
+        lines.append("可能原因:AI 分析失败较多,请检查 OpenAI API key 和模型可用性。")
     elif stats.get("excluded", 0) > fetched * 0.3:
-        lines.append("可能原因：大量论文被排除关键词过滤，检查 exclude_keywords 是否过于宽泛。")
+        lines.append("可能原因:大量论文被排除关键词过滤,检查 exclude_keywords 是否过于宽泛。")
     elif stats.get("already_reported", 0) > 0:
-        lines.append("可能原因：符合条件的论文已在之前报告中展示过。")
+        lines.append("可能原因:符合条件的论文已在之前报告中展示过。")
     return lines
 
 
 def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5, stats: dict | None = None) -> str:
     lines = []
-    lines.append(f"essay_agent 文献简报｜{today_str}")
+    lines.append(f"essay_agent 文献简报|{today_str}")
     lines.append("")
 
     if df.empty:
         lines.append("今天没有符合条件的新论文进入最终收录。")
         if stats and stats.get("cache_hit", 0) > 0 and stats.get("analyzed", 0) == 0:
-            lines.append("今日候选主要来自历史缓存结果，未触发新的 AI 分析。")
+            lines.append("今日候选主要来自历史缓存结果,未触发新的 AI 分析。")
         lines.append("")
         lines.extend(_format_stats_diagnostic(stats))
         return "\n".join(lines)
 
-    lines.append(f"今日最终收录：{len(df)} 篇")
-    lines.append(f"高相关（>=80分）：{len(df[df['相关性分数'] >= 80])} 篇")
-    lines.append(f"数据源：{', '.join(sorted(df['source'].dropna().unique()))}")
+    lines.append(f"今日最终收录:{len(df)} 篇")
+    lines.append(f"高相关(>=80分):{len(df[df['相关性分数'] >= 80])} 篇")
+    lines.append(f"数据源:{', '.join(sorted(df['source'].dropna().unique()))}")
     lines.append("")
     lines.append(f"TOP {top_n} 论文概览")
     lines.append("-" * 24)
@@ -996,10 +1007,10 @@ def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5, stats: di
     top_df = df.sort_values(by=["相关性分数", "published_date"], ascending=[False, False]).head(top_n)
     for idx, (_, row) in enumerate(top_df.iterrows(), start=1):
         lines.append(f"{idx}. {row['title']}")
-        lines.append(f"   来源：{row['source']}｜日期：{row['published_date']}｜分数：{row['相关性分数']}")
-        lines.append(f"   链接：{row['url']}")
-        lines.append(f"   中文摘要：{row['中文摘要']}")
-        lines.append(f"   启发：{row['可借鉴启发']}")
+        lines.append(f"   来源:{row['source']}|日期:{row['published_date']}|分数:{row['相关性分数']}")
+        lines.append(f"   链接:{row['url']}")
+        lines.append(f"   中文摘要:{row['中文摘要']}")
+        lines.append(f"   启发:{row['可借鉴启发']}")
         lines.append("")
 
     lines.append("附件中包含完整 Markdown、Excel 和运行统计。")
@@ -1018,7 +1029,7 @@ def send_email_via_brevo(runtime: dict, subject: str, body: str, attachments: li
     required = ["email_username", "email_password", "email_from", "email_to"]
     missing = [k for k in required if not runtime.get(k)]
     if missing:
-        raise ValueError(f"邮件推送缺少必要环境变量：{', '.join(missing)}")
+        raise ValueError(f"邮件推送缺少必要环境变量:{', '.join(missing)}")
 
     recipients = parse_recipients(runtime["email_to"])
     if not recipients:
@@ -1055,7 +1066,7 @@ def send_email_via_brevo(runtime: dict, subject: str, body: str, attachments: li
 
 def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n: int = 10, stats: dict | None = None):
     with open(md_path, "w", encoding="utf-8") as f:
-        f.write(f"# 文献简报（{today_str}）\n\n")
+        f.write(f"# 文献简报({today_str})\n\n")
 
         if df.empty:
             f.write("今天没有符合条件的新论文进入最终收录。\n\n")
@@ -1064,47 +1075,47 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
             return
 
         f.write("## 概览\n\n")
-        f.write(f"- 今日最终收录：{len(df)} 篇\n")
-        f.write(f"- 高相关（>=80分）：{len(df[df['相关性分数'] >= 80])} 篇\n")
-        f.write(f"- 中高相关（>=60分）：{len(df[df['相关性分数'] >= 60])} 篇\n")
-        f.write(f"- 数据源：{', '.join(sorted(df['source'].dropna().unique()))}\n\n")
+        f.write(f"- 今日最终收录:{len(df)} 篇\n")
+        f.write(f"- 高相关(>=80分):{len(df[df['相关性分数'] >= 80])} 篇\n")
+        f.write(f"- 中高相关(>=60分):{len(df[df['相关性分数'] >= 60])} 篇\n")
+        f.write(f"- 数据源:{', '.join(sorted(df['source'].dropna().unique()))}\n\n")
 
         top_df = df.sort_values(by=["相关性分数", "published_date"], ascending=[False, False]).head(report_top_n)
         f.write(f"## TOP {report_top_n} 优先关注\n\n")
         for idx, (_, row) in enumerate(top_df.iterrows(), start=1):
             f.write(f"### {idx}. {row['title']}\n\n")
-            f.write(f"- 分数：{row['相关性分数']}\n")
-            f.write(f"- 来源：{row['source']}\n")
-            f.write(f"- 分组：{row['query_name']}\n")
-            f.write(f"- 链接：{row['url']}\n")
-            f.write(f"- 中文摘要：{row['中文摘要']}\n")
-            f.write(f"- 可借鉴启发：{row['可借鉴启发']}\n\n")
+            f.write(f"- 分数:{row['相关性分数']}\n")
+            f.write(f"- 来源:{row['source']}\n")
+            f.write(f"- 分组:{row['query_name']}\n")
+            f.write(f"- 链接:{row['url']}\n")
+            f.write(f"- 中文摘要:{row['中文摘要']}\n")
+            f.write(f"- 可借鉴启发:{row['可借鉴启发']}\n\n")
 
         grouped = df.sort_values(by=["query_name", "相关性分数"], ascending=[True, False]).groupby("query_name")
         for group_name, sub_df in grouped:
-            f.write(f"## 分组：{group_name}\n\n")
+            f.write(f"## 分组:{group_name}\n\n")
             for _, row in sub_df.iterrows():
                 f.write(f"### {row['title']}\n\n")
-                f.write(f"- 来源：{row['source']}\n")
-                f.write(f"- 日期：{row['published_date']}\n")
-                f.write(f"- 作者：{row['authors']}\n")
-                f.write(f"- 分类：{row['primary_category']}\n")
-                f.write(f"- 链接：{row['url']}\n")
-                f.write(f"- 中文摘要：{row['中文摘要']}\n")
-                f.write(f"- 英文摘要：{truncate_text(str(row['english_abstract']), 1200)}\n")
-                f.write(f"- 研究主题：{row['研究主题']}\n")
-                f.write(f"- 空间/场景类型：{row['空间/场景类型']}\n")
-                f.write(f"- 研究场景：{row['研究场景']}\n")
-                f.write(f"- 自变量：{row['自变量']}\n")
-                f.write(f"- 因变量：{row['因变量']}\n")
-                f.write(f"- 行为指标：{row['行为指标']}\n")
-                f.write(f"- 生理/感知指标：{row['生理/感知指标']}\n")
-                f.write(f"- 研究方法：{row['研究方法']}\n")
-                f.write(f"- 数据/样本：{row['数据/样本']}\n")
-                f.write(f"- 主要结论：{row['主要结论']}\n")
-                f.write(f"- 相关性：{row['与建筑/体育空间研究相关性']}\n")
-                f.write(f"- 相关性分数：{row['相关性分数']}\n")
-                f.write(f"- 可借鉴启发：{row['可借鉴启发']}\n\n")
+                f.write(f"- 来源:{row['source']}\n")
+                f.write(f"- 日期:{row['published_date']}\n")
+                f.write(f"- 作者:{row['authors']}\n")
+                f.write(f"- 分类:{row['primary_category']}\n")
+                f.write(f"- 链接:{row['url']}\n")
+                f.write(f"- 中文摘要:{row['中文摘要']}\n")
+                f.write(f"- 英文摘要:{truncate_text(str(row['english_abstract']), 1200)}\n")
+                f.write(f"- 研究主题:{row['研究主题']}\n")
+                f.write(f"- 空间/场景类型:{row['空间/场景类型']}\n")
+                f.write(f"- 研究场景:{row['研究场景']}\n")
+                f.write(f"- 自变量:{row['自变量']}\n")
+                f.write(f"- 因变量:{row['因变量']}\n")
+                f.write(f"- 行为指标:{row['行为指标']}\n")
+                f.write(f"- 生理/感知指标:{row['生理/感知指标']}\n")
+                f.write(f"- 研究方法:{row['研究方法']}\n")
+                f.write(f"- 数据/样本:{row['数据/样本']}\n")
+                f.write(f"- 主要结论:{row['主要结论']}\n")
+                f.write(f"- 相关性:{row['与建筑/体育空间/疗愈环境研究相关性']}\n")
+                f.write(f"- 相关性分数:{row['相关性分数']}\n")
+                f.write(f"- 可借鉴启发:{row['可借鉴启发']}\n\n")
 
 
 def main():
@@ -1437,7 +1448,7 @@ def main():
 
     if runtime.get("email_enabled") and (not df.empty or runtime.get("empty_report_email", True)):
         try:
-            email_subject = f"[essay_agent] 文献简报 {today_str}｜收录 {len(df)} 篇"
+            email_subject = f"[essay_agent] 文献简报 {today_str}|收录 {len(df)} 篇"
             email_body = build_email_body(df, today_str, runtime.get("email_top_n", 5), stats=stats)
             send_email_via_brevo(
                 runtime=runtime,
@@ -1454,10 +1465,10 @@ def main():
     if df.empty:
         logger.info("没有抓到符合条件的新论文。")
     else:
-        logger.info("已生成 Excel：%s", excel_path)
-    logger.info("已生成 Markdown：%s", md_path)
-    logger.info("已生成统计：%s", stats_path)
-    logger.info("运行统计：%s", stats)
+        logger.info("已生成 Excel:%s", excel_path)
+    logger.info("已生成 Markdown:%s", md_path)
+    logger.info("已生成统计:%s", stats_path)
+    logger.info("运行统计:%s", stats)
 
 
 if __name__ == "__main__":

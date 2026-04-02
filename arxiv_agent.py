@@ -1362,7 +1362,7 @@ def main():
 
     if runtime.get("email_enabled") and (not df.empty or runtime.get("empty_report_email", True)):
         try:
-            email_subject = f"[arxiv_agent] 文献简报 {today_str}|收录 {len(df)} 篇"
+            email_subject = f"[essay_agent] 文献简报 {today_str}|收录 {len(df)} 篇"
             email_body = build_email_body(df, today_str, runtime.get("email_top_n", 5), stats=stats)
             send_email_via_brevo(
                 runtime=runtime,
