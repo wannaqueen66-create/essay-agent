@@ -1045,7 +1045,7 @@ def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5, stats: di
 
     lines.append(f"今日最终收录：{len(df)} 篇")
     lines.append(f"高相关（>=80分）：{len(df[df['相关性分数'] >= 80])} 篇")
-    lines.append(f"数据源:{', '.join(sorted(df['source'].dropna().unique()))}")
+    lines.append(f"数据源：{', '.join(sorted(df['source'].dropna().unique()))}")
     lines.append("")
     lines.append(f"TOP {top_n} 论文概览")
     lines.append("-" * 24)
@@ -1124,7 +1124,7 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
         f.write(f"- 今日最终收录：{len(df)} 篇\n")
         f.write(f"- 高相关（>=80分）：{len(df[df['相关性分数'] >= 80])} 篇\n")
         f.write(f"- 中高相关（>=60分）：{len(df[df['相关性分数'] >= 60])} 篇\n")
-        f.write(f"- 数据源:{', '.join(sorted(df['source'].dropna().unique()))}\n\n")
+        f.write(f"- 数据源：{', '.join(sorted(df['source'].dropna().unique()))}\n\n")
 
         top_df = df.sort_values(by=["相关性分数", "published_date"], ascending=[False, False]).head(report_top_n)
         f.write(f"## TOP {report_top_n} 优先关注\n\n")
