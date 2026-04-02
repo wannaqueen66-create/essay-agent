@@ -724,7 +724,7 @@ If you are running this for the first time, use this safer starter setup:
 ```env
 OPENAI_MODEL=gpt-4.1-mini
 DAYS_BACK=3
-MAX_RESULTS_PER_QUERY=25
+MAX_RESULTS_PER_QUERY=100
 MIN_RELEVANCE_SCORE=55
 FORCE_REFRESH=false
 LOW_SCORE_REFRESH_DAYS=3
@@ -828,3 +828,10 @@ For a standalone Chinese document, see:
 This repository uses the existing `LICENSE` file.
 
 本仓库沿用现有 `LICENSE` 文件。
+
+
+## Output Retention / 输出保留
+
+- Recommended / 建议：`OUTPUT_RETENTION_DAYS=30`
+- Keeps only recent `essay_daily_*` output files to avoid long-term accumulation.
+- 只保留最近的 `essay_daily_*` 输出文件，避免长期堆积。

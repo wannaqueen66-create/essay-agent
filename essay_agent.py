@@ -975,7 +975,7 @@ def _format_stats_diagnostic(stats: dict | None) -> list[str]:
     if not stats:
         return ["(无运行统计信息)"]
     lines = [
-        "本次运行诊断:",
+        "本次运行诊断：",
         f"  - 总抓取:{stats.get('fetched', 0)} 篇",
         f"  - 日期过旧被过滤:{stats.get('too_old', 0)} 篇",
         f"  - 重复去除:{stats.get('duplicate', 0)} 篇",
@@ -993,11 +993,11 @@ def _format_stats_diagnostic(stats: dict | None) -> list[str]:
     source_details = stats.get("source_details", {})
     if source_details:
         lines.append("")
-        lines.append("各数据源状态:")
+        lines.append("各数据源状态：")
         for key, detail in source_details.items():
             err = detail.get("error", "")
             if err:
-                status = f"抓取失败: {err}"
+                status = f"抓取失败：{err}"
             elif detail.get("fetched", 0) == 0:
                 status = "获取 0 篇"
             else:
@@ -1043,8 +1043,8 @@ def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5, stats: di
         lines.extend(_format_stats_diagnostic(stats))
         return "\n".join(lines)
 
-    lines.append(f"今日最终收录:{len(df)} 篇")
-    lines.append(f"高相关(>=80分):{len(df[df['相关性分数'] >= 80])} 篇")
+    lines.append(f"今日最终收录：{len(df)} 篇")
+    lines.append(f"高相关（>=80分）：{len(df[df['相关性分数'] >= 80])} 篇")
     lines.append(f"数据源:{', '.join(sorted(df['source'].dropna().unique()))}")
     lines.append("")
     lines.append(f"TOP {top_n} 论文概览")
@@ -1053,10 +1053,10 @@ def build_email_body(df: pd.DataFrame, today_str: str, top_n: int = 5, stats: di
     top_df = df.sort_values(by=["相关性分数", "published_date"], ascending=[False, False]).head(top_n)
     for idx, (_, row) in enumerate(top_df.iterrows(), start=1):
         lines.append(f"{idx}. {row['title']}")
-        lines.append(f"   来源:{row['source']}|日期:{row['published_date']}|分数:{row['相关性分数']}")
-        lines.append(f"   链接:{row['url']}")
-        lines.append(f"   中文摘要:{row['中文摘要']}")
-        lines.append(f"   启发:{row['可借鉴启发']}")
+        lines.append(f"   来源：{row['source']}｜日期：{row['published_date']}｜分数：{row['相关性分数']}")
+        lines.append(f"   链接：{row['url']}")
+        lines.append(f"   中文摘要：{row['中文摘要']}")
+        lines.append(f"   启发：{row['可借鉴启发']}")
         lines.append("")
 
     lines.append("附件中包含完整 Markdown、Excel 和运行统计。")
@@ -1121,9 +1121,9 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
             return
 
         f.write("## 概览\n\n")
-        f.write(f"- 今日最终收录:{len(df)} 篇\n")
-        f.write(f"- 高相关(>=80分):{len(df[df['相关性分数'] >= 80])} 篇\n")
-        f.write(f"- 中高相关(>=60分):{len(df[df['相关性分数'] >= 60])} 篇\n")
+        f.write(f"- 今日最终收录：{len(df)} 篇\n")
+        f.write(f"- 高相关（>=80分）：{len(df[df['相关性分数'] >= 80])} 篇\n")
+        f.write(f"- 中高相关（>=60分）：{len(df[df['相关性分数'] >= 60])} 篇\n")
         f.write(f"- 数据源:{', '.join(sorted(df['source'].dropna().unique()))}\n\n")
 
         top_df = df.sort_values(by=["相关性分数", "published_date"], ascending=[False, False]).head(report_top_n)
@@ -1131,23 +1131,23 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
         for idx, (_, row) in enumerate(top_df.iterrows(), start=1):
             f.write(f"### {idx}. {row['title']}\n\n")
             f.write(f"- 分数:{row['相关性分数']}\n")
-            f.write(f"- 来源:{row['source']}\n")
+            f.write(f"- 来源：{row['source']}\n")
             f.write(f"- 分组:{row['query_name']}\n")
-            f.write(f"- 链接:{row['url']}\n")
-            f.write(f"- 中文摘要:{row['中文摘要']}\n")
-            f.write(f"- 可借鉴启发:{row['可借鉴启发']}\n\n")
+            f.write(f"- 链接：{row['url']}\n")
+            f.write(f"- 中文摘要：{row['中文摘要']}\n")
+            f.write(f"- 可借鉴启发：{row['可借鉴启发']}\n\n")
 
         grouped = df.sort_values(by=["query_name", "相关性分数"], ascending=[True, False]).groupby("query_name")
         for group_name, sub_df in grouped:
             f.write(f"## 分组:{group_name}\n\n")
             for _, row in sub_df.iterrows():
                 f.write(f"### {row['title']}\n\n")
-                f.write(f"- 来源:{row['source']}\n")
+                f.write(f"- 来源：{row['source']}\n")
                 f.write(f"- 日期:{row['published_date']}\n")
                 f.write(f"- 作者:{row['authors']}\n")
                 f.write(f"- 分类:{row['primary_category']}\n")
-                f.write(f"- 链接:{row['url']}\n")
-                f.write(f"- 中文摘要:{row['中文摘要']}\n")
+                f.write(f"- 链接：{row['url']}\n")
+                f.write(f"- 中文摘要：{row['中文摘要']}\n")
                 f.write(f"- 英文摘要:{truncate_text(str(row['english_abstract']), 1200)}\n")
                 f.write(f"- 研究主题:{row['研究主题']}\n")
                 f.write(f"- 空间/场景类型:{row['空间/场景类型']}\n")
@@ -1161,7 +1161,7 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
                 f.write(f"- 主要结论:{row['主要结论']}\n")
                 f.write(f"- 相关性:{row['与建筑/体育空间/疗愈环境研究相关性']}\n")
                 f.write(f"- 相关性分数:{row['相关性分数']}\n")
-                f.write(f"- 可借鉴启发:{row['可借鉴启发']}\n\n")
+                f.write(f"- 可借鉴启发：{row['可借鉴启发']}\n\n")
 
 
 def main():
@@ -1218,13 +1218,13 @@ def main():
     }
 
     for query_name, query_text in queries.items():
-        logger.info("正在抓取 query: %s", query_name)
+        logger.info("正在抓取 query：%s", query_name)
 
         for source_name in sources:
             source_key = f"{source_name}/{query_name}"
             effective_query = resolve_query_for_source(source_name, query_name, queries, generic_queries)
-            logger.info("  来源: %s", source_name)
-            logger.info("  使用检索式: %s", effective_query[:160])
+            logger.info("  来源：%s", source_name)
+            logger.info("  使用检索式：%s", effective_query[:160])
             try:
                 source_items = fetch_source_results(source_name, effective_query, max_results_per_query)
             except Exception as e:
@@ -1512,12 +1512,12 @@ def main():
     if df.empty:
         logger.info("没有抓到符合条件的新论文。")
     else:
-        logger.info("已生成 Excel:%s", excel_path)
-    logger.info("已生成 Markdown:%s", md_path)
+        logger.info("已生成 Excel：%s", excel_path)
+    logger.info("已生成 Markdown：%s", md_path)
     removed_outputs = cleanup_old_outputs(output_dir, int(os.getenv("OUTPUT_RETENTION_DAYS", "30")))
     if removed_outputs > 0:
         logger.info("已清理旧输出文件：%d 个", removed_outputs)
-    logger.info("已生成统计:%s", stats_path)
+    logger.info("已生成统计：%s", stats_path)
     logger.info("运行统计：%s", stats)
     elapsed = time.time() - start_time
     logger.info("总耗时：%.1f 秒（%.1f 分钟）", elapsed, elapsed / 60)
