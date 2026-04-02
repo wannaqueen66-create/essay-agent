@@ -942,6 +942,7 @@ def fetch_journal_papers(journals: list[dict], days_back: int, max_per_journal: 
 
 
 def result_to_row(query_name: str, item: dict, analysis: dict) -> dict:
+    related_text = analysis.get("与建筑/体育空间/疗愈环境研究相关性") or analysis.get("与建筑/体育空间研究相关性", "")
     return {
         "doi": item.get("doi", ""),
         "source": item["source"],
@@ -953,21 +954,21 @@ def result_to_row(query_name: str, item: dict, analysis: dict) -> dict:
         "primary_category": item["primary_category"],
         "categories": "; ".join(item["categories"]),
         "english_abstract": item["abstract"],
-        "中文摘要": analysis["中文摘要"],
-        "研究主题": analysis["研究主题"],
-        "空间/场景类型": analysis["空间/场景类型"],
-        "研究场景": analysis["研究场景"],
-        "自变量": analysis["自变量"],
-        "因变量": analysis["因变量"],
-        "行为指标": analysis["行为指标"],
-        "生理/感知指标": analysis["生理/感知指标"],
-        "研究方法": analysis["研究方法"],
-        "数据/样本": analysis["数据/样本"],
-        "主要结论": analysis["主要结论"],
-        "与建筑/体育空间/疗愈环境研究相关性": analysis["与建筑/体育空间/疗愈环境研究相关性"],
-        "相关性分数": analysis["相关性分数"],
-        "可借鉴启发": analysis["可借鉴启发"],
-        "原始分析": analysis["原始分析"],
+        "中文摘要": analysis.get("中文摘要", ""),
+        "研究主题": analysis.get("研究主题", ""),
+        "空间/场景类型": analysis.get("空间/场景类型", ""),
+        "研究场景": analysis.get("研究场景", ""),
+        "自变量": analysis.get("自变量", ""),
+        "因变量": analysis.get("因变量", ""),
+        "行为指标": analysis.get("行为指标", ""),
+        "生理/感知指标": analysis.get("生理/感知指标", ""),
+        "研究方法": analysis.get("研究方法", ""),
+        "数据/样本": analysis.get("数据/样本", ""),
+        "主要结论": analysis.get("主要结论", ""),
+        "与建筑/体育空间/疗愈环境研究相关性": related_text,
+        "相关性分数": analysis.get("相关性分数", 0),
+        "可借鉴启发": analysis.get("可借鉴启发", ""),
+        "原始分析": analysis.get("原始分析", ""),
     }
 
 
