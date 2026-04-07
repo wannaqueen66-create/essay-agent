@@ -786,6 +786,9 @@ def fetch_semantic_scholar_results(query_text: str, max_results: int) -> list[di
         data = requests.get(url, params=params, headers=REQUEST_HEADERS, timeout=30).json()
         for paper in data.get("data", []):
             date_str = paper.get("publicationDate") or f"{paper.get('year', 1970)}-01-01"
+            fields_of_study = paper.get("fieldsOfStudy") or []
+            if not isinstance(fields_of_study, list):
+                fields_of_study = []
             items.append(
                 {
                     "source": "semantic_scholar",
@@ -795,8 +798,8 @@ def fetch_semantic_scholar_results(query_text: str, max_results: int) -> list[di
                     "url": paper.get("url") or f"https://www.semanticscholar.org/paper/{paper.get('paperId','')}",
                     "published": datetime.fromisoformat(normalize_date(date_str) + "T00:00:00+00:00"),
                     "authors": [a.get("name", "") for a in paper.get("authors", []) if a.get("name")],
-                    "primary_category": (paper.get("fieldsOfStudy") or [""])[0],
-                    "categories": paper.get("fieldsOfStudy", [])[:8],
+                    "primary_category": fields_of_study[0] if fields_of_study else "",
+                    "categories": fields_of_study[:8],
                 }
             )
     except Exception:
