@@ -491,6 +491,8 @@ def upsert_paper(
 
 
 def parse_analysis_text(text: str) -> dict:
+    relation_key = "与建筑/体育空间/疗愈环境研究相关性"
+    legacy_relation_key = "与建筑/体育空间研究相关性"
     result = {
         "中文摘要": "",
         "研究主题": "",
@@ -503,33 +505,54 @@ def parse_analysis_text(text: str) -> dict:
         "研究方法": "",
         "数据/样本": "",
         "主要结论": "",
-        "与建筑/体育空间/疗愈环境研究相关性": "",
+        relation_key: "",
         "相关性分数": 0,
         "可借鉴启发": "",
         "原始分析": text,
     }
 
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict):
+            for key in list(result.keys()):
+                if key == "原始分析":
+                    continue
+                if key in data and data[key] is not None:
+                    result[key] = data[key]
+            if not result[relation_key] and legacy_relation_key in data and data[legacy_relation_key] is not None:
+                result[relation_key] = data[legacy_relation_key]
+            try:
+                result["相关性分数"] = int(result.get("相关性分数", 0))
+            except Exception:
+                result["相关性分数"] = 0
+            result[legacy_relation_key] = result[relation_key]
+            return result
+    except Exception:
+        pass
+
     current_key = None
+    alias_keys = [relation_key, legacy_relation_key]
     for raw_line in text.splitlines():
         line = raw_line.strip()
         if not line:
             continue
 
         matched = False
-        for key in list(result.keys()):
+        for key in list(result.keys()) + [legacy_relation_key]:
             if key == "原始分析":
                 continue
-            if line.startswith(f"{key}:") or line.startswith(f"{key}:"):
-                current_key = key
-                value = line.split(":", 1)[-1] if ":" in line else line.split(":", 1)[-1]
+            if line.startswith(f"{key}：") or line.startswith(f"{key}:"):
+                current_key = relation_key if key in alias_keys else key
+                value = line.split("：", 1)[-1] if "：" in line else line.split(":", 1)[-1]
                 value = value.strip()
-                if key == "相关性分数":
+                if current_key == "相关性分数":
+                    digits = ''.join(ch for ch in value if ch.isdigit())
                     try:
-                        result[key] = int(value)
+                        result[current_key] = int(digits) if digits else 0
                     except Exception:
-                        result[key] = 0
+                        result[current_key] = 0
                 else:
-                    result[key] = value
+                    result[current_key] = value
                 matched = True
                 break
         if not matched and current_key and current_key != "原始分析":
@@ -537,42 +560,60 @@ def parse_analysis_text(text: str) -> dict:
                 continue
             result[current_key] = (result[current_key] + " " + line).strip()
 
+    result[legacy_relation_key] = result[relation_key]
     return result
 
 
 def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3) -> dict:
     prompt = f"""
-你是一个"建筑学 / 体育空间 / VR环境 / 行为轨迹 / 疗愈空间"方向的科研文献分析助手。
-请根据下面论文标题和英文摘要，输出适合空间研究者使用的结构化信息。
+你是一个建筑学、体育空间、VR环境、行为轨迹与疗愈空间领域的专业文献分析助手。
 
-要求：
-1. 用简洁中文。
-2. 先给出一句"中文摘要"。
-3. 如果摘要没有明确写出，就写"未明确说明"，不要瞎编。
-4. "相关性分数"请按 0-100 打分。
-5. 特别关注：空间类型、研究场景、行为变量、生理指标、VR/轨迹方法、是否能迁移到建筑/体育空间/疗愈环境研究。
-6. 疗愈空间方向重点关注：healing space、restorative environment、biophilic design、therapeutic landscape、healing garden、salutogenic design、stress recovery、attention restoration、nature-based therapy、健康促进环境设计等。这类论文应获得较高相关性分数。
+你的任务是：基于论文标题和英文摘要，判断这篇论文对“空间环境—行为/感知/健康结果”研究是否具有直接价值、可迁移价值，或基本无关。
 
-请严格按下面格式输出：
+判断原则：
+1. 优先关注论文是否明确涉及空间、场景、环境、行为、感知、健康恢复、疗愈、VR空间体验、轨迹移动等内容。
+2. 如果论文仅与一般心理学、一般医学治疗、一般机器学习、一般计算机视觉相关，而没有明确空间/环境要素，则应降低相关性评分。
+3. 即使论文不是直接研究建筑/体育/疗愈空间，只要其方法、指标、变量、实验场景或结论对这些领域有明确借鉴意义，也可以给中等分数。
+4. 不要因为出现个别关键词就机械给高分，必须结合论文核心研究问题、方法、场景和结论综合判断。
+5. 只能根据标题和摘要中明确提供的信息作答，不得补充外部常识；没有提到的内容一律写“未明确说明”。
 
-中文摘要：
-研究主题：
-空间/场景类型：
-研究场景：
-自变量：
-因变量：
-行为指标：
-生理/感知指标：
-研究方法：
-数据/样本：
-主要结论：
-与建筑/体育空间/疗愈环境研究相关性：
-相关性分数：
-可借鉴启发:
+评分准则（严格遵守）：
+- 90-100：高度直接相关，可直接用于建筑/体育空间/疗愈环境研究
+- 70-89：相关性较强，虽不完全同领域，但有明确可迁移的方法、指标、场景或结论
+- 50-69：存在一定间接关联或潜在参考价值，值得关注但不是核心目标论文
+- 40-49：仅边缘相关，有少量可借鉴之处
+- 0-39：基本无关，或仅在非常泛的层面上能联想到应用
 
-标题:{title}
+以下主题应显著提高相关性判断，但不得仅因关键词出现而高分：
+- healing space, restorative environment, biophilic design, therapeutic landscape, healing garden, salutogenic design, stress recovery, attention restoration, nature-based therapy, 健康促进环境
+- spatial behavior, occupant behavior, space use, VR + EEG / eye-tracking, human mobility trajectory
 
-英文摘要:{abstract}
+请全部使用简洁中文，并仅输出一个有效 JSON 对象，不要添加 Markdown、代码块或任何额外说明。
+JSON 必须包含以下字段：
+- 中文摘要
+- 研究主题
+- 空间/场景类型
+- 研究场景
+- 自变量
+- 因变量
+- 行为指标
+- 生理/感知指标
+- 研究方法
+- 数据/样本
+- 主要结论
+- 与建筑/体育空间/疗愈环境研究相关性
+- 相关性分数
+- 可借鉴启发
+
+其中：
+- 所有字段值都用简洁中文填写
+- 相关性分数必须是 0-100 的整数
+- 没有提到的信息一律写“未明确说明”
+- 可借鉴启发只能基于标题和摘要里已出现的方法、变量、场景或结论来写
+
+标题：{title}
+
+英文摘要：{abstract}
 """
 
     last_error = None
@@ -604,10 +645,11 @@ def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries
         "研究方法": "",
         "数据/样本": "",
         "主要结论": "",
-        "与建筑/体育空间/疗愈环境研究相关性": "",
+        relation_key: "",
+        legacy_relation_key: "",
         "相关性分数": 0,
         "可借鉴启发": "",
-        "原始分析": f"分析失败:{last_error}",
+        "原始分析": f"分析失败：{last_error}",
         "分析状态": "failed",
     }
 
@@ -942,7 +984,7 @@ def fetch_journal_papers(journals: list[dict], days_back: int, max_per_journal: 
 
 
 def result_to_row(query_name: str, item: dict, analysis: dict) -> dict:
-    related_text = analysis.get("与建筑/体育空间/疗愈环境研究相关性") or analysis.get("与建筑/体育空间研究相关性", "")
+    related_text = analysis.get("与建筑/体育空间/疗愈环境研究相关性") or analysis.get("与建筑/体育空间/疗愈环境研究相关性", analysis.get("与建筑/体育空间研究相关性", ""))
     return {
         "doi": item.get("doi", ""),
         "source": item["source"],
