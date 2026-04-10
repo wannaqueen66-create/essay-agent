@@ -11,7 +11,7 @@ Environment=PYTHONUNBUFFERED=1
 MemoryMax=768M
 MemoryHigh=512M
 CPUQuota=80%
-TimeoutStartSec=600
+TimeoutStartSec=3600
 StandardOutput=journal
 StandardError=journal
 
