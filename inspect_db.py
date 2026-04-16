@@ -53,6 +53,32 @@ def main():
     for row in rows:
         print(f"- {row['source']}: {row['c']}")
 
+    print("\n=== 评分版本分布 (scoring_version) ===")
+    rows = conn.execute(
+        "SELECT COALESCE(scoring_version,'(null)') AS v, COUNT(*) AS c FROM papers GROUP BY v ORDER BY c DESC"
+    ).fetchall()
+    for row in rows:
+        print(f"- {row['v']}: {row['c']}")
+    legacy_pending = conn.execute(
+        """
+        SELECT COUNT(*) AS c FROM papers
+        WHERE (scoring_version IS NULL OR scoring_version != 'v2_multi')
+          AND analysis_status='success'
+          AND english_abstract IS NOT NULL AND english_abstract != ''
+        """
+    ).fetchone()["c"]
+    legacy_high_pending = conn.execute(
+        """
+        SELECT COUNT(*) AS c FROM papers
+        WHERE (scoring_version IS NULL OR scoring_version != 'v2_multi')
+          AND analysis_status='success'
+          AND COALESCE(meets_threshold,0)=1
+          AND displayed_at IS NULL
+        """
+    ).fetchone()["c"]
+    print(f"待重评分总量: {legacy_pending}")
+    print(f"其中高优先（高分未展示）: {legacy_high_pending}")
+
     print("\n=== 近期待展示 TOP 10 ===")
     rows = conn.execute(
         """
