@@ -52,9 +52,6 @@ class RankGlobalPoolTest(unittest.TestCase):
             self.mod._normalize_rerank_profile("sf_0.6b"),
             "siliconflow-qwen3-0.6b",
         )
-        blt = self.mod._resolve_rerank_profile_config("blt-qwen3-4b")
-        self.assertEqual(blt["provider"], "blt")
-        self.assertEqual(blt["model"], "Qwen/Qwen3-Reranker-4B")
         siliconflow = self.mod._resolve_rerank_profile_config("siliconflow-qwen3-0.6b")
         self.assertEqual(siliconflow["provider"], "siliconflow")
         self.assertEqual(
@@ -62,26 +59,11 @@ class RankGlobalPoolTest(unittest.TestCase):
             "https://api.siliconflow.cn/v1/rerank",
         )
 
-    def test_rerank_profile_resolves_remote_defaults(self):
-        self.assertEqual(
-            self.mod._normalize_rerank_profile("sf_0.6b"),
-            "siliconflow-qwen3-0.6b",
-        )
-        blt = self.mod._resolve_rerank_profile_config("blt-qwen3-4b")
-        self.assertEqual(blt["provider"], "blt")
-        self.assertEqual(blt["model"], "qwen3-reranker-4b")
-        siliconflow = self.mod._resolve_rerank_profile_config("siliconflow-qwen3-0.6b")
-        self.assertEqual(siliconflow["provider"], "siliconflow")
-        self.assertEqual(
-            siliconflow["base_url"],
-            "https://api.siliconflow.cn/v1/rerank",
-        )
-
-    def test_default_rerank_model_preserves_upstream_blt_default(self):
+    def test_default_rerank_model_uses_local_default(self):
         with patch.dict(self.mod.os.environ, {}, clear=True):
             self.assertEqual(
                 self.mod.resolve_default_rerank_model(),
-                "qwen3-reranker-4b",
+                "Qwen/Qwen3-Reranker-0.6B",
             )
         with patch.dict(self.mod.os.environ, {"RERANK_PROFILE": "local-qwen3-0.6b"}, clear=True):
             self.assertEqual(

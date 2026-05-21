@@ -255,17 +255,9 @@
       baseUrl: 'https://api.siliconflow.cn/v1/rerank',
       note: '速度快、成本低；需要硅基流动 API Key。',
     },
-    {
-      value: 'blt-qwen3-4b',
-      label: 'BLT Qwen3-Reranker-4B',
-      provider: 'blt',
-      model: 'qwen3-reranker-4b',
-      baseUrl: '',
-      note: '可复用上方 BLT API Key；如有独立 rerank 服务，也可以单独填写。',
-    },
   ];
   const DEFAULT_RERANKER_PROFILE =
-    RERANKER_PROFILES.find((item) => item.value === 'blt-qwen3-4b') ||
+    RERANKER_PROFILES.find((item) => item.value === 'local-qwen3-0.6b') ||
     RERANKER_PROFILES[0];
   const findRerankerProfile = (value) => {
     const normalized = normalizeText(value || '').toLowerCase().replace(/_/g, '-');
@@ -281,7 +273,7 @@
     const model = normalizeText(reranker.model || '');
     const inferredProfile =
       reranker.profile ||
-      (provider === 'blt' || model === 'qwen3-reranker-4b' ? 'blt-qwen3-4b' : '');
+      '';
     const profile = findRerankerProfile(inferredProfile);
     return {
       profile: profile.value,
@@ -576,13 +568,7 @@
       const secretNameDeepSeekBase = 'DEEPSEEK_BASE_URL';
       const secretNameDeepSeekModel = 'DEEPSEEK_MODEL';
       const secretNameLlmPrimaryBase = 'LLM_PRIMARY_BASE_URL';
-      const secretNameBltSummaryModel = 'BLT_SUMMARY_MODEL';
-      const secretNameBltFilterModel = 'BLT_FILTER_MODEL';
-      const secretNameBltRewriteModel = 'BLT_REWRITE_MODEL';
       const secretNameSkipRerank = 'DPR_SKIP_RERANK';
-      const secretNameRerankKey = 'Reranker_LLM_API_KEY';
-      const secretNameRerankUrl = 'Reranker_LLM_BASE_URL';
-      const secretNameLegacyRerankModel = 'Reranker_LLM_MODEL';
       const secretNameLocalRerankModel = 'LOCAL_RERANK_MODEL';
       const secretNameRerankProfile = 'RERANK_PROFILE';
       const secretNameRerankProvider = 'RERANK_PROVIDER';
@@ -592,8 +578,6 @@
       const secretNameSiliconFlowKey = 'SILICONFLOW_API_KEY';
       const secretNameSiliconFlowUrl = 'SILICONFLOW_RERANK_URL';
       const secretNameSiliconFlowInterval = 'SILICONFLOW_RERANK_MIN_INTERVAL_SECONDS';
-      const secretNameBltRerankKey = 'BLT_RERANK_API_KEY';
-      const secretNameBltRerankUrl = 'BLT_RERANK_BASE_URL';
 
       const putSecret = async (name, encrypted) => {
         const body = {
@@ -633,9 +617,6 @@
         { name: secretNameDeepSeekBase, value: summarizedBaseUrl },
         { name: secretNameDeepSeekModel, value: summarizedModel },
         { name: secretNameLlmPrimaryBase, value: summarizedBaseUrl },
-        { name: secretNameBltSummaryModel, value: summarizedModel },
-        { name: secretNameBltFilterModel, value: filterModel || summarizedModel },
-        { name: secretNameBltRewriteModel, value: rewriteModel || summarizedModel },
         { name: secretNameSkipRerank, value: skipRerank ? 'true' : 'false' },
         { name: secretNameLocalRerankModel, value: localRerankModel },
         { name: secretNameRerankProfile, value: rerankerProfile },
@@ -660,20 +641,11 @@
         });
         secrets.push({ name: secretNameSiliconFlowInterval, value: '8' });
       }
-      if (rerankerProvider === 'blt') {
-        if (rerankerApiKey) {
-          secrets.push({ name: secretNameBltRerankKey, value: rerankerApiKey });
-        }
-        if (rerankerBaseUrl) {
-          secrets.push({ name: secretNameBltRerankUrl, value: rerankerBaseUrl });
-        }
-      }
-
       if (!skipRerank && rerankerProvider !== 'local' && rerankerApiKey && rerankerBaseUrl && rerankerModel) {
         secrets.push(
-          { name: secretNameRerankKey, value: rerankerApiKey },
-          { name: secretNameRerankUrl, value: rerankerBaseUrl },
-          { name: secretNameLegacyRerankModel, value: rerankerModel },
+          { name: secretNameRerankApiKey, value: rerankerApiKey },
+          { name: secretNameRerankBaseUrl, value: rerankerBaseUrl },
+          { name: secretNameRerankModel, value: rerankerModel },
         );
       }
 
@@ -1270,18 +1242,6 @@
       const deepseekTestBtn = document.getElementById('secret-setup-deepseek-test');
       const deepseekStatusEl = document.getElementById('secret-setup-deepseek-status');
       const deepseekModelSelect = document.getElementById('secret-setup-deepseek-model-select');
-      const customSection = document.getElementById('secret-setup-custom-section');
-      const platoInput = document.getElementById('secret-setup-plato');
-      const platoVerifyBtn = document.getElementById('secret-setup-plato-verify');
-      const platoTestBtn = document.getElementById('secret-setup-plato-test');
-      const platoStatusEl = document.getElementById('secret-setup-plato-status');
-      const platoModelsWrap = document.getElementById('secret-setup-plato-models');
-      const customApiKeyInput = document.getElementById('secret-setup-custom-api-key');
-      const customBaseUrlInput = document.getElementById('secret-setup-custom-base-url');
-      const customModel1Input = document.getElementById('secret-setup-custom-model-1');
-      const customModel2Input = document.getElementById('secret-setup-custom-model-2');
-      const customModel3Input = document.getElementById('secret-setup-custom-model-3');
-      const platoModelSelect = document.getElementById('secret-setup-plato-model-select');
       const deepseekPresetBtn = document.getElementById('secret-setup-preset-deepseek');
       const glmPresetBtn = document.getElementById('secret-setup-preset-glm');
       const minimaxPresetBtn = document.getElementById('secret-setup-preset-minimax');
@@ -1310,11 +1270,6 @@
         !deepseekTestBtn ||
         !deepseekStatusEl ||
         !deepseekModelSelect ||
-        !customApiKeyInput ||
-        !customBaseUrlInput ||
-        !customModel1Input ||
-        !customModel2Input ||
-        !customModel3Input ||
         !deepseekPresetBtn ||
         !glmPresetBtn ||
         !minimaxPresetBtn ||
@@ -1399,9 +1354,6 @@
       };
       const syncProviderSections = () => {
         deepseekSection.style.display = 'block';
-        if (customSection) {
-          customSection.style.display = 'none';
-        }
       };
 
       const resetGithubStatus = () => {
@@ -1423,10 +1375,8 @@
         const typedBaseUrl = normalizeBaseUrlForStorage(
           rerankerBaseUrlInput.value || profile.baseUrl || '',
         );
-        const apiKey =
-          profile.provider === 'blt' ? (typedApiKey || fallbackApiKey) : typedApiKey;
-        const baseUrl =
-          profile.provider === 'blt' ? (typedBaseUrl || fallbackBaseUrl) : typedBaseUrl;
+        const apiKey = typedApiKey;
+        const baseUrl = typedBaseUrl;
 
         if (profile.provider === 'siliconflow' && !apiKey) {
           throw new Error('选择硅基流动 reranker 时需要填写 Reranker API Key。');
@@ -1454,7 +1404,7 @@
         if (!model) {
           throw new Error('请选择用于工作流总结的大模型。');
         }
-        const reranker = buildRerankerDraft(apiKey, getDefaultPlatoBaseUrl());
+        const reranker = buildRerankerDraft(apiKey, getDefaultDeepSeekBaseUrl());
         return {
           providerType: 'deepseek',
           summaryApiKey: apiKey,

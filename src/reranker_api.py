@@ -13,7 +13,6 @@ import requests
 SILICONFLOW_RERANK_URL = "https://api.siliconflow.cn/v1/rerank"
 SILICONFLOW_QWEN3_RERANKER_MODELS = [
   "Qwen/Qwen3-Reranker-0.6B",
-  "Qwen/Qwen3-Reranker-4B",
   "Qwen/Qwen3-Reranker-8B",
 ]
 SILICONFLOW_CHUNK_OPTION_MODELS = {
@@ -23,7 +22,6 @@ SILICONFLOW_CHUNK_OPTION_MODELS = {
 }
 SILICONFLOW_QWEN3_PRICE_PER_M_TOKEN = {
   "Qwen/Qwen3-Reranker-0.6B": 0.01,
-  "Qwen/Qwen3-Reranker-4B": 0.02,
   "Qwen/Qwen3-Reranker-8B": 0.04,
 }
 DEFAULT_QWEN3_RERANK_INSTRUCTION = (

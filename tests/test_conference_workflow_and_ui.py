@@ -16,7 +16,6 @@ class ConferenceWorkflowAndUiTest(unittest.TestCase):
         self.assertIn("RERANK_PROFILE", text)
         self.assertIn("RERANK_API_KEY", text)
         self.assertIn("SILICONFLOW_API_KEY", text)
-        self.assertIn("BLT_RERANK_API_KEY", text)
 
     def test_conference_retrieval_workflow_dispatches_pipeline(self):
         root = pathlib.Path(__file__).resolve().parents[1]
@@ -39,7 +38,6 @@ class ConferenceWorkflowAndUiTest(unittest.TestCase):
         self.assertIn("RERANK_PROFILE", text)
         self.assertIn("RERANK_API_KEY", text)
         self.assertIn("SILICONFLOW_API_KEY", text)
-        self.assertIn("BLT_RERANK_API_KEY", text)
         self.assertIn("DEEPSEEK_API_KEY", text)
         self.assertIn("python src/conference_pipeline.py", text)
         self.assertIn("--run-llm-refine", text)

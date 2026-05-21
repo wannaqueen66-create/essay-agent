@@ -38,10 +38,6 @@ RERANK_PROFILE_CONFIGS: Dict[str, Dict[str, str]] = {
     "model": "Qwen/Qwen3-Reranker-0.6B",
     "base_url": "https://api.siliconflow.cn/v1/rerank",
   },
-  "blt-qwen3-4b": {
-    "provider": "blt",
-    "model": "qwen3-reranker-4b",
-  },
 }
 
 
@@ -64,8 +60,6 @@ def _normalize_rerank_profile(value: str) -> str:
     "siliconflow": "siliconflow-qwen3-0.6b",
     "siliconflow-0.6b": "siliconflow-qwen3-0.6b",
     "sf-0.6b": "siliconflow-qwen3-0.6b",
-    "blt": "blt-qwen3-4b",
-    "blt-4b": "blt-qwen3-4b",
   }
   return aliases.get(text, text)
 
@@ -76,8 +70,8 @@ def _normalize_rerank_provider(value: str) -> str:
     return "local"
   if text in {"siliconflow", "sf"}:
     return "siliconflow"
-  if text in {"blt", "remote"}:
-    return text
+  if text in {"remote"}:
+    return "siliconflow"
   return text
 
 
@@ -90,11 +84,9 @@ def resolve_default_rerank_model() -> str:
   profile_config = _resolve_rerank_profile_config(os.getenv("RERANK_PROFILE", ""))
   if profile_config.get("model"):
     return profile_config["model"]
-  provider = _normalize_rerank_provider(os.getenv("RERANK_PROVIDER") or "blt")
+  provider = _normalize_rerank_provider(os.getenv("RERANK_PROVIDER") or "local")
   if provider == "local":
     return os.getenv("LOCAL_RERANK_MODEL") or os.getenv("RERANK_MODEL") or DEFAULT_LOCAL_RERANK_MODEL
-  if provider == "blt":
-    return os.getenv("BLT_RERANK_MODEL") or os.getenv("RERANK_MODEL") or "qwen3-reranker-4b"
   return os.getenv("RERANK_MODEL") or DEFAULT_LOCAL_RERANK_MODEL
 
 
@@ -103,13 +95,6 @@ def _resolve_remote_api_key(provider: str) -> str:
     return (
       os.getenv("SILICONFLOW_API_KEY")
       or os.getenv("RERANK_API_KEY")
-      or ""
-    ).strip()
-  if provider == "blt":
-    return (
-      os.getenv("BLT_RERANK_API_KEY")
-      or os.getenv("RERANK_API_KEY")
-      or os.getenv("BLT_API_KEY")
       or ""
     ).strip()
   return (os.getenv("RERANK_API_KEY") or "").strip()
@@ -124,15 +109,6 @@ def _resolve_remote_base_url(provider: str, profile_config: Dict[str, str], expl
       or os.getenv("RERANK_API_BASE_URL")
       or profile_config.get("base_url")
       or "https://api.siliconflow.cn/v1/rerank"
-    ).strip()
-  if provider == "blt":
-    return (
-      os.getenv("BLT_RERANK_BASE_URL")
-      or os.getenv("RERANK_API_BASE_URL")
-      or os.getenv("BLT_API_BASE")
-      or os.getenv("BLT_PRIMARY_BASE_URL")
-      or profile_config.get("base_url")
-      or ""
     ).strip()
   return (os.getenv("RERANK_API_BASE_URL") or profile_config.get("base_url") or "").strip()
 
@@ -661,13 +637,13 @@ def main() -> None:
     "--rerank-profile",
     type=str,
     default=os.getenv("RERANK_PROFILE", ""),
-    help="Rerank 预设：local-qwen3-0.6b / siliconflow-qwen3-0.6b / blt-qwen3-4b。",
+    help="Rerank 预设：local-qwen3-0.6b / siliconflow-qwen3-0.6b。",
   )
   parser.add_argument(
     "--rerank-provider",
     type=str,
     default=os.getenv("RERANK_PROVIDER", ""),
-    help="Rerank provider：local / siliconflow / blt；默认由 --rerank-profile 推断。",
+    help="Rerank provider：local / siliconflow；默认由 --rerank-profile 推断。",
   )
   parser.add_argument(
     "--rerank-model",
@@ -728,7 +704,7 @@ def main() -> None:
 
   profile_config = _resolve_rerank_profile_config(args.rerank_profile)
   provider = _normalize_rerank_provider(
-    args.rerank_provider or profile_config.get("provider") or os.getenv("RERANK_PROVIDER") or "blt"
+    args.rerank_provider or profile_config.get("provider") or os.getenv("RERANK_PROVIDER") or "local"
   )
   rerank_model = (
     args.rerank_model
@@ -736,11 +712,9 @@ def main() -> None:
     or (
       os.getenv("LOCAL_RERANK_MODEL")
       if provider == "local"
-      else os.getenv("BLT_RERANK_MODEL")
-      if provider == "blt"
       else os.getenv("RERANK_MODEL")
     )
-    or ("qwen3-reranker-4b" if provider == "blt" else DEFAULT_LOCAL_RERANK_MODEL)
+    or DEFAULT_LOCAL_RERANK_MODEL
   )
   log(
     f"[INFO] reranker 配置：profile={args.rerank_profile or 'custom'}，provider={provider}，"
@@ -775,16 +749,6 @@ def main() -> None:
       api_key=api_key,
       base_url=base_url,
     )
-  elif provider == "blt":
-    api_key = _resolve_remote_api_key(provider)
-    base_url = _resolve_remote_base_url(provider, profile_config, args.rerank_api_base_url)
-    if not api_key:
-      raise RuntimeError("BLT reranker 缺少 BLT_API_KEY、BLT_RERANK_API_KEY 或 RERANK_API_KEY。")
-    log(f"[INFO] 使用 BLT reranker：base_url={base_url or '<default>'}")
-    kwargs: Dict[str, Any] = {"api_key": api_key, "model": rerank_model}
-    if base_url:
-      kwargs["base_url"] = base_url
-    reranker = BltClient(**kwargs)
   else:
     raise RuntimeError(f"不支持的 reranker provider：{provider}")
   process_file(
