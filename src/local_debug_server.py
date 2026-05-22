@@ -24,6 +24,7 @@ except Exception:  # pragma: no cover
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 RUNS_DIR = ROOT_DIR / ".local-runs"
+CONFIG_PATH = ROOT_DIR / "config.yaml"
 
 
 def utc_now() -> str:
@@ -294,6 +295,12 @@ class Handler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/local/health":
             return self._json({"ok": True, "mode": "local-debug", "time": utc_now()})
+        if parsed.path == "/api/local/config":
+            return self._json({
+                "ok": True,
+                "path": str(CONFIG_PATH),
+                "content": CONFIG_PATH.read_text(encoding="utf-8") if CONFIG_PATH.exists() else "",
+            })
         if parsed.path == "/api/local/runs":
             return self._json({"ok": True, "runs": RUN_STORE.list()})
         if parsed.path.startswith("/api/local/runs/"):
@@ -309,6 +316,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/api/local/config":
+            return self._save_local_config()
         if parsed.path != "/api/local/workflows/dispatch":
             return self._json({"ok": False, "error": "not found"}, status=404)
         try:
@@ -323,6 +332,21 @@ class Handler(SimpleHTTPRequestHandler):
             cmd = build_command(workflow_key, workflow_file, inputs)
             run = RUN_STORE.create(workflow_key, workflow_file, inputs, cmd, config=config, secret=secret)
             return self._json({"ok": True, "run": run})
+        except Exception as exc:
+            return self._json({"ok": False, "error": str(exc)}, status=400)
+
+    def _save_local_config(self) -> None:
+        if yaml is None:
+            return self._json({"ok": False, "error": "本地调试后端缺少 PyYAML，无法写入 config.yaml。"}, status=500)
+        try:
+            length = int(self.headers.get("Content-Length") or "0")
+            payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+            config = payload.get("config")
+            if not isinstance(config, dict):
+                return self._json({"ok": False, "error": "config must be an object"}, status=400)
+            content = yaml.safe_dump(config, allow_unicode=True, sort_keys=False, width=10**9)
+            CONFIG_PATH.write_text(content, encoding="utf-8")
+            return self._json({"ok": True, "path": str(CONFIG_PATH), "savedAt": utc_now()})
         except Exception as exc:
             return self._json({"ok": False, "error": str(exc)}, status=400)
 

@@ -59,6 +59,8 @@ class ConferenceWorkflowAndUiTest(unittest.TestCase):
         self.assertIn("secret: localSecret", runner)
         github_token = (root / "app" / "subscriptions.github-token.js").read_text(encoding="utf-8")
         self.assertIn("loadLocalConfigOverride", github_token)
+        self.assertIn("saveLocalConfigToDisk", github_token)
+        self.assertIn("/api/local/config", github_token)
         self.assertIn("192\\.168", runner)
         self.assertTrue((root / "src" / "local_debug_server.py").exists())
         self.assertTrue((root / "scripts" / "local_debug.sh").exists())
@@ -80,6 +82,8 @@ class ConferenceWorkflowAndUiTest(unittest.TestCase):
         fetch_arxiv = (root / "src" / "maintain" / "fetchers" / "fetch_arxiv.py").read_text(encoding="utf-8")
 
         self.assertIn("DPR_CONFIG_FILE", server)
+        self.assertIn("/api/local/config", server)
+        self.assertIn("CONFIG_PATH.write_text", server)
         self.assertIn("build_secret_env", server)
         self.assertIn("DEEPSEEK_API_KEY", server)
         self.assertIn("SUMMARY_API_KEY", server)
