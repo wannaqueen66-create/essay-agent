@@ -156,7 +156,7 @@ def build_conference_summary_lines(
     lines = [
         "---",
         "",
-        "## 论文简要总结（会议检索）",
+        "## 论文详细总结（自动生成）",
         "",
         "### 1. 检索相关性",
         ensure_sentence(evidence or "该论文由会议检索链路召回，具体相关性可结合检索需求和原文进一步判断"),
@@ -278,6 +278,7 @@ def build_conference_markdown(
     years: str,
 ) -> str:
     title = norm_text(paper.get("title")) or norm_text(ranked_item.get("paper_id")) or "Untitled"
+    title_zh = norm_text(ranked_item.get("title_zh") or paper.get("title_zh"))
     authors = paper.get("authors") if isinstance(paper.get("authors"), list) else []
     authors_text = ", ".join(norm_text(item) for item in authors if norm_text(item)) or "Unknown"
     published = norm_text(paper.get("published"))[:10] or "Unknown"
@@ -302,29 +303,29 @@ def build_conference_markdown(
 
     lines = ["---"]
     lines.append(f"title: {yaml_escape_value(title)}")
+    if title_zh:
+        lines.append(f"title_zh: {yaml_escape_value(title_zh)}")
     lines.append(f"authors: {yaml_escape_value(authors_text)}")
     lines.append(f"date: {yaml_escape_value(published)}")
     if link:
         lines.append(f"pdf: {yaml_escape_value(link)}")
+    lines.append(f"tags: [{', '.join(yaml_escape_value(tag) for tag in tags)}]")
     if score_text:
         lines.append(f"score: {score_text}")
     if evidence:
         lines.append(f"evidence: {yaml_escape_value(evidence)}")
     if tldr:
         lines.append(f"tldr: {yaml_escape_value(tldr)}")
-    if abstract:
-        lines.append(f"abstract_en: {yaml_escape_value(abstract)}")
     if source:
         lines.append(f"source: {yaml_escape_value(source)}")
     lines.append("selection_source: conference_retrieval")
-    lines.append(f"tags: [{', '.join(yaml_escape_value(tag) for tag in tags)}]")
     lines.append(f"motivation: {yaml_escape_value(glance['motivation'])}")
     lines.append(f"method: {yaml_escape_value(glance['method'])}")
     lines.append(f"result: {yaml_escape_value(glance['result'])}")
     lines.append(f"conclusion: {yaml_escape_value(glance['conclusion'])}")
     lines.append("---")
     lines.append("")
-    lines.append("## Original Abstract")
+    lines.append("## Abstract")
     lines.append(abstract)
     lines.append("")
     lines.extend(build_conference_summary_lines(paper, ranked_item, link))

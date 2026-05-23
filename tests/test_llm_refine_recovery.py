@@ -126,6 +126,7 @@ class LlmRefineRecoveryTest(unittest.TestCase):
                                 "evidence_cn": "相关",
                                 "tldr_en": "ok",
                                 "tldr_cn": "相关",
+                                "title_zh": "中文标题",
                                 "motivation_cn": "研究动机",
                                 "method_cn": "方法概括",
                                 "result_cn": "结果概括",
@@ -156,6 +157,7 @@ class LlmRefineRecoveryTest(unittest.TestCase):
         )
 
         self.assertEqual(out[0]["id"], "p-1")
+        self.assertEqual(out[0]["title_zh"], "中文标题")
         self.assertEqual(out[0]["method_cn"], "方法概括")
         user_content = captured["messages"][1]["content"]
         self.assertEqual(captured["schema_name"], "rerank_batch")
@@ -165,6 +167,7 @@ class LlmRefineRecoveryTest(unittest.TestCase):
         self.assertEqual(user_content.count("User requirements list:"), 2)
         self.assertEqual(user_content.count("Papers:"), 2)
         self.assertIn("method_cn", user_content)
+        self.assertIn("title_zh", user_content)
         self.assertTrue(user_content.rstrip().endswith("Output must be strict JSON only, no markdown, no fences, no extra text."))
 
 

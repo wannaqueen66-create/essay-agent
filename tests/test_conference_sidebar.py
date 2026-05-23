@@ -38,6 +38,7 @@ class ConferenceSidebarTest(unittest.TestCase):
                     "paper_id": "openreview-icml-2025-abc123",
                     "score": 9,
                     "canonical_evidence": "命中 ICML 会议检索需求。",
+                    "title_zh": "会议论文中文标题",
                     "matched_query_tag": "query:rl:composite",
                 }
             ],
@@ -69,6 +70,7 @@ class ConferenceSidebarTest(unittest.TestCase):
             paper_md = tmp_path / "docs" / "conference" / "icml-2025" / "openreview-icml-2025-abc123-a-conference-paper.md"
             self.assertTrue(paper_md.exists())
             md_text = paper_md.read_text(encoding="utf-8")
+            self.assertIn("title_zh: 会议论文中文标题", md_text)
             self.assertIn("selection_source: conference_retrieval", md_text)
             self.assertIn("motivation:", md_text)
             self.assertIn("method:", md_text)
@@ -76,8 +78,8 @@ class ConferenceSidebarTest(unittest.TestCase):
             self.assertNotIn("method: This paper proposes", md_text)
             self.assertIn("result:", md_text)
             self.assertIn("conclusion:", md_text)
-            self.assertIn("## Original Abstract", md_text)
-            self.assertIn("## 论文简要总结（会议检索）", md_text)
+            self.assertIn("## Abstract", md_text)
+            self.assertIn("## 论文详细总结（自动生成）", md_text)
             self.assertIn("### 1. 检索相关性", md_text)
             self.assertIn("### 4. 来源与原文", md_text)
             self.assertNotIn("# A Conference Paper", md_text)
