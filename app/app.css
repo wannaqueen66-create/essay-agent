@@ -2016,6 +2016,164 @@ body.dpr-paper-page .dpr-title-bar.dpr-title-single .dpr-title-en {
   }
 }
 
+.essay-agent-workbench {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 18px 64px;
+}
+
+.essay-agent-hero {
+  border-radius: 28px;
+  padding: 34px;
+  color: #102018;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(47, 129, 82, 0.22), transparent 34%),
+    linear-gradient(135deg, #f3efe3 0%, #d8e7d5 52%, #f7d9a8 100%);
+  box-shadow: 0 24px 70px rgba(31, 53, 42, 0.16);
+}
+
+.essay-agent-kicker {
+  margin: 0 0 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.essay-agent-hero h1 {
+  margin: 0 0 10px;
+  font-size: clamp(32px, 6vw, 64px);
+  line-height: 0.95;
+}
+
+.essay-agent-toolbar,
+.essay-agent-auth {
+  display: grid;
+  grid-template-columns: 1.5fr 0.8fr 0.5fr auto;
+  gap: 10px;
+  margin-top: 18px;
+  align-items: center;
+}
+
+.essay-agent-auth {
+  grid-template-columns: 1fr auto auto auto;
+}
+
+.essay-agent-toolbar input,
+.essay-agent-auth input,
+.essay-agent-note-label textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(20, 45, 32, 0.18);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.essay-agent-toolbar button,
+.essay-agent-auth button,
+.essay-agent-card-actions button,
+.essay-agent-card button[data-action="save-note"] {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #1f5f3e;
+  color: #fff;
+  cursor: pointer;
+}
+
+.essay-agent-status {
+  margin: 18px 0;
+  color: #53645a;
+}
+
+.essay-agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+.essay-agent-card {
+  border: 1px solid rgba(30, 61, 42, 0.12);
+  border-radius: 22px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 50px rgba(28, 45, 34, 0.09);
+}
+
+.essay-agent-card-topline,
+.essay-agent-fields,
+.essay-agent-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.essay-agent-card-topline span,
+.essay-agent-fields span {
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: rgba(31, 95, 62, 0.08);
+  color: #28513b;
+  font-size: 12px;
+}
+
+.essay-agent-score {
+  background: rgba(238, 164, 65, 0.18) !important;
+}
+
+.essay-agent-card h2 {
+  margin: 14px 0 10px;
+  font-size: 20px;
+  line-height: 1.24;
+}
+
+.essay-agent-summary {
+  color: #394a40;
+}
+
+.essay-agent-card details {
+  margin: 14px 0;
+}
+
+.essay-agent-card pre {
+  overflow: auto;
+  border-radius: 14px;
+  padding: 12px;
+  background: #102018;
+  color: #e9f4ec;
+}
+
+.essay-agent-card-actions {
+  margin: 12px 0;
+}
+
+.essay-agent-card-actions a {
+  color: #1f5f3e;
+  font-weight: 700;
+}
+
+.essay-agent-note-label {
+  display: block;
+  margin-top: 10px;
+  font-weight: 700;
+  color: #253a2e;
+}
+
+.essay-agent-note-label textarea {
+  min-height: 86px;
+  margin-top: 6px;
+  resize: vertical;
+}
+
+@media (max-width: 720px) {
+  .essay-agent-toolbar,
+  .essay-agent-auth {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* 隐藏原始 h1（保留在 DOM 中供解析/复制兜底），避免重复显示 */
 body.dpr-paper-page .markdown-section h1.dpr-title-hidden {
   position: absolute;

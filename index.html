@@ -366,6 +366,18 @@
         emnlp: {
           enabled: true,
         },
+        essay_agent: {
+          enabled: true,
+          url: 'https://lyucdwgefyfbmaiopjbk.supabase.co',
+          anon_key: 'sb_publishable_lX-oi64Uxyd7SIVv3_w2Uw_MTOojeKq',
+          schema: 'public',
+          papers_table: 'essay_agent_papers',
+          states_table: 'user_paper_states',
+          use_vector_rpc: true,
+          vector_rpc: 'match_essay_agent_papers',
+          vector_rpc_exact: 'match_essay_agent_papers',
+          use_bm25_rpc: false,
+        },
       },
       window.DPR_RUNTIME_SOURCE_BACKENDS || {},
     );
@@ -379,6 +391,7 @@
       { type: 'script', path: 'app/gist-share-utils.js' },
       { type: 'script', path: 'app/zotero-meta-utils.js' },
       { type: 'script', path: 'app/zotero-chat-utils.js' },
+      { type: 'script', path: 'app/essay-agent-workbench.js' },
       { type: 'script', path: 'app/docsify-plugin.js' },
       { type: 'script', path: 'app/vendor/docsify/4/lib/docsify.min.js' },
     ]).then(function () {

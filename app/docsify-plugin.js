@@ -37,6 +37,19 @@ window.$docsify = {
         return vm.route.file.replace('.md', '');
       };
 
+      hook.beforeEach((content, next) => {
+        try {
+          const routePath = String((vm.route && vm.route.path) || '').replace(/^\/+/, '').replace(/\/$/, '');
+          if (routePath === 'essay-agent-workbench') {
+            next('<div id="essay-agent-workbench-root"></div>');
+            return;
+          }
+        } catch {
+          // ignore
+        }
+        next(content);
+      });
+
       const metaFallbacks = {
         citation_title: 'Daily Paper Reader Default Entry',
         citation_journal_title: 'arxiv',
@@ -4496,6 +4509,18 @@ window.$docsify = {
 
       // --- Docsify 生命周期钩子 ---
       hook.doneEach(function () {
+        try {
+          const routePath = String((vm.route && vm.route.path) || '').replace(/^\/+/, '').replace(/\/$/, '');
+          if (routePath === 'essay-agent-workbench') {
+            const root = document.getElementById('essay-agent-workbench-root');
+            if (root && window.EssayAgentWorkbench && typeof window.EssayAgentWorkbench.render === 'function') {
+              window.EssayAgentWorkbench.render(root);
+            }
+          }
+        } catch {
+          // ignore
+        }
+
         try {
           if (typeof window.DPRHideInitialSplash === 'function') {
             window.DPRHideInitialSplash();
