@@ -1,0 +1,123 @@
+{
+  "fetched": 103,
+  "too_old": 57,
+  "duplicate": 0,
+  "excluded": 9,
+  "must_have_filtered": 0,
+  "first_seen": 37,
+  "seen_before": 0,
+  "cache_hit": 0,
+  "cache_refresh": 0,
+  "analyzed": 37,
+  "analysis_success": 37,
+  "analysis_failed": 0,
+  "below_min_relevance": 29,
+  "already_reported": 0,
+  "kept": 8,
+  "source_details": {
+    "arxiv/spatial_behavior": {
+      "fetched": 5,
+      "error": ""
+    },
+    "openalex/spatial_behavior": {
+      "fetched": 5,
+      "error": ""
+    },
+    "crossref/spatial_behavior": {
+      "fetched": 5,
+      "error": ""
+    },
+    "semantic_scholar/spatial_behavior": {
+      "fetched": 0,
+      "error": ""
+    },
+    "europepmc/spatial_behavior": {
+      "fetched": 5,
+      "error": ""
+    },
+    "arxiv/vr_environment": {
+      "fetched": 5,
+      "error": ""
+    },
+    "openalex/vr_environment": {
+      "fetched": 5,
+      "error": ""
+    },
+    "crossref/vr_environment": {
+      "fetched": 5,
+      "error": ""
+    },
+    "semantic_scholar/vr_environment": {
+      "fetched": 0,
+      "error": ""
+    },
+    "europepmc/vr_environment": {
+      "fetched": 5,
+      "error": ""
+    },
+    "arxiv/mobility_trajectory": {
+      "fetched": 0,
+      "error": "Page request resulted in HTTP 429 (https://export.arxiv.org/api/query?search_query=%28cat%3Aphysics.soc-ph+OR+cat%3Astat.AP+OR+cat%3Acs.SI%29+AND+%28%22human+mobility%22+OR+trajectory+OR+%22movement+pattern%22+OR+%22spatiotemporal+mobility%22%0A+OR+%22activity+space%22+OR+%22time+geography%22+OR+%22path+choice%22+OR+%22movement+ecology%22%29%0A&id_list=&sortBy=submittedDate&sortOrder=descending&start=0&max_results=100)"
+    },
+    "openalex/mobility_trajectory": {
+      "fetched": 5,
+      "error": ""
+    },
+    "crossref/mobility_trajectory": {
+      "fetched": 5,
+      "error": ""
+    },
+    "semantic_scholar/mobility_trajectory": {
+      "fetched": 0,
+      "error": ""
+    },
+    "europepmc/mobility_trajectory": {
+      "fetched": 5,
+      "error": ""
+    },
+    "arxiv/sports_space_optional": {
+      "fetched": 5,
+      "error": ""
+    },
+    "openalex/sports_space_optional": {
+      "fetched": 5,
+      "error": ""
+    },
+    "crossref/sports_space_optional": {
+      "fetched": 5,
+      "error": ""
+    },
+    "semantic_scholar/sports_space_optional": {
+      "fetched": 0,
+      "error": ""
+    },
+    "europepmc/sports_space_optional": {
+      "fetched": 5,
+      "error": ""
+    },
+    "arxiv/healing_space": {
+      "fetched": 5,
+      "error": ""
+    },
+    "openalex/healing_space": {
+      "fetched": 5,
+      "error": ""
+    },
+    "crossref/healing_space": {
+      "fetched": 5,
+      "error": ""
+    },
+    "semantic_scholar/healing_space": {
+      "fetched": 0,
+      "error": ""
+    },
+    "europepmc/healing_space": {
+      "fetched": 5,
+      "error": ""
+    },
+    "journal": {
+      "fetched": 8,
+      "error": ""
+    }
+  }
+}
