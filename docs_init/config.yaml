@@ -1,6 +1,6 @@
 github:
   owner: ''
-  repo: daily-paper-reader
+  repo: essay-agent
 arxiv_paper_setting:
   mode: standard
   days_window: 9
@@ -20,6 +20,17 @@ supabase:
   sync_table: arxiv_sync_status
   sync_success_value: success
   schema: public
+source_backends:
+  essay_agent:
+    enabled: true
+    url: https://mtmywybficfvhaxmoiyx.supabase.co
+    anon_key: sb_publishable_wxSU5DUr9OhdqeNzhcn09Q_14yt4ZN6
+    schema: public
+    papers_table: essay_agent_papers
+    use_vector_rpc: true
+    vector_rpc: match_essay_agent_papers
+    vector_rpc_exact: match_essay_agent_papers
+    use_bm25_rpc: false
 subscriptions:
   schema_migration:
     stage: A
