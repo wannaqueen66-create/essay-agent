@@ -565,6 +565,8 @@ def parse_analysis_text(text: str) -> dict:
 
 
 def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3) -> dict:
+    relation_key = "与建筑/体育空间/疗愈环境研究相关性"
+    legacy_relation_key = "与建筑/体育空间研究相关性"
     prompt = f"""
 你是一个建筑学、体育空间、VR环境、行为轨迹与疗愈空间领域的专业文献分析助手。
 
