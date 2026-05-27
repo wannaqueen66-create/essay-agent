@@ -18,6 +18,10 @@ chat.db-wal
 app.log
 *.log
 .local-runs/
+papers.db
+papers.db-shm
+papers.db-wal
+output/
 
 # 本地环境配置
 .env

@@ -1,0 +1,292 @@
+# ============================================================
+# config.yaml  (arXiv 自动检索 + AI结构化分析：建筑学/体育空间/VR/轨迹/疗愈空间)
+# 用途：每天自动抓 arXiv 新论文，并提取 IV/DV/方法/结论（可扩展到 EEG/眼动/疗愈环境）
+#
+# YAML 注释用 #；你只需要改：queries 里的关键词/类别，或输出/模型参数
+# ============================================================
+
+# -----------------------------
+# 输出目录与文件名
+# -----------------------------
+output_dir: "output"          # 输出文件夹（不存在会自动创建）
+output_prefix: "essay_daily"  # 输出文件名前缀，程序会自动拼接日期（YYYY-MM-DD）
+
+# -----------------------------
+# OpenAI 输入长度设置
+# 模型改由 .env 中的 OPENAI_MODEL 控制
+# -----------------------------
+max_chars_per_paper: 6000     # 送入模型的最大字符数（title+abstract），控制成本
+
+# -----------------------------
+# 抓取范围与数量控制
+# 运行时参数改由 .env 控制：DAYS_BACK / MAX_RESULTS_PER_QUERY
+# -----------------------------
+
+# -----------------------------
+# arXiv queries（核心：三条检索式）
+# 说明：
+# - arXiv 没有建筑学分类，因此用：HCI/社会物理/应用统计 等领域 + 建筑/空间/行为关键词
+# - 每个 query 是一个方向：空间行为 / VR实验（含EEG眼动）/ 轨迹mobility
+# - 想“更像建筑学”：就增加 built environment / architecture / indoor 等词
+# - 想“更像体育空间”：加 sports facility/gymnasium/stadium
+# -----------------------------
+queries:
+
+  # ----------------------------------------------------------
+  # arXiv 专用检索式（保留原版 cat: 分类语法）
+  # ----------------------------------------------------------
+
+  # 1) 空间行为 / 建筑环境中的使用者行为
+  spatial_behavior: >
+    (cat:cs.HC OR cat:physics.soc-ph OR cat:stat.AP)
+    AND
+    ("built environment" OR architecture OR indoor OR "indoor environment"
+     OR "spatial behavior" OR "occupant behavior" OR "space use"
+     OR "human behavior" OR "activity pattern" OR "space-time" OR spatiotemporal)
+
+  # 2) VR + 生理测量（EEG/眼动）+ 建筑/空间感知/可供性
+  vr_environment: >
+    (cat:cs.HC OR cat:cs.AI OR cat:stat.ML)
+    AND
+    ("virtual reality" OR VR OR "immersive environment")
+    AND
+    ("EEG" OR electroencephalography OR "eye tracking" OR eyetracking OR gaze
+     OR "pupil dilation" OR fixation OR saccade
+     OR neural OR "brain activity")
+    AND
+    ("built environment" OR architecture OR indoor
+     OR "spatial perception" OR perception OR affordance OR presence OR "environmental perception")
+
+  # 3) 时空轨迹 / mobility / movement pattern
+  mobility_trajectory: >
+    (cat:physics.soc-ph OR cat:stat.AP OR cat:cs.SI)
+    AND
+    ("human mobility" OR trajectory OR "movement pattern" OR "spatiotemporal mobility"
+     OR "activity space" OR "time geography" OR "path choice" OR "movement ecology")
+
+  # 4) 体育空间专用
+  sports_space_optional: >
+    ("sports facility" OR "sport facility" OR "sports space" OR gymnasium OR stadium OR "sports field"
+     OR "campus sports" OR "recreational facility")
+    AND
+    (trajectory OR mobility OR spatiotemporal OR "space use" OR "occupant behavior"
+     OR "virtual reality" OR VR OR affordance OR "spatial perception")
+
+  # 5) 疗愈空间 / healing environment / restorative design
+  healing_space: >
+    (cat:cs.HC OR cat:physics.soc-ph OR cat:stat.AP OR cat:q-bio.NC)
+    AND
+    ("healing space" OR "healing environment" OR "therapeutic environment"
+     OR "restorative environment" OR "restorative design" OR "salutogenic design"
+     OR "biophilic design" OR "therapeutic landscape" OR "healing garden"
+     OR "healing architecture" OR "health-promoting environment"
+     OR "stress recovery" OR "attention restoration" OR "nature-based therapy")
+
+# -----------------------------
+# 通用文献源专用检索式
+# 说明：供 OpenAlex / Crossref / Semantic Scholar 使用
+# 去掉 cat: 语法，只保留自然语言关键词组合
+# 若缺省，则程序会退回使用 queries 中同名项
+# -----------------------------
+generic_queries:
+
+  spatial_behavior: >
+    (("built environment" OR architecture OR indoor OR "indoor environment" OR campus OR spatial)
+    AND
+    ("spatial behavior" OR "occupant behavior" OR "space use" OR "activity pattern" OR spatiotemporal OR "activity space"))
+    OR
+    (HCI AND (space OR spatial OR environment))
+
+  vr_environment: >
+    ("virtual reality" OR VR OR "immersive environment")
+    AND
+    ("EEG" OR electroencephalography OR "eye tracking" OR eyetracking OR gaze
+     OR "pupil dilation" OR fixation OR saccade
+     OR neural OR "brain activity")
+    AND
+    ("spatial perception" OR affordance OR presence OR "environmental perception"
+     OR "built environment" OR architecture OR indoor OR space OR spatial)
+
+  mobility_trajectory: >
+    (("human mobility" OR "spatiotemporal mobility" OR trajectory OR "movement pattern" OR "path choice")
+    AND
+    (space OR spatial OR campus OR environment OR "built environment" OR indoor OR stadium OR gymnasium))
+    OR
+    ("activity space" OR "time geography")
+
+  sports_space_optional: >
+    ("sports facility" OR "sport facility" OR "sports space" OR gymnasium OR stadium OR "sports field"
+     OR "campus sports" OR "recreational facility")
+    AND
+    (mobility OR spatiotemporal OR trajectory OR "space use" OR "occupant behavior"
+     OR "virtual reality" OR VR OR affordance OR "spatial perception" OR gaze OR EEG)
+
+  healing_space: >
+    ("healing space" OR "healing environment" OR "therapeutic environment"
+     OR "restorative environment" OR "restorative design" OR "salutogenic design"
+     OR "biophilic design" OR "therapeutic landscape" OR "healing garden"
+     OR "healing architecture" OR "health-promoting environment")
+    AND
+    ("stress recovery" OR "attention restoration" OR "nature-based therapy"
+     OR "well-being" OR wellbeing OR "mental health" OR "perceived restorativeness"
+     OR "environmental psychology" OR "spatial perception" OR "built environment"
+     OR architecture OR indoor OR hospital OR healthcare OR "green space")
+
+# Semantic Scholar 专用精简检索式
+# 说明：SS API 对长布尔表达式支持差，用简短自然语言效果更好
+# 在 generic_queries 下用 _semantic_scholar 子键存放
+  _semantic_scholar:
+    spatial_behavior: "spatial behavior occupant built environment indoor architecture"
+    vr_environment: "virtual reality EEG eye tracking spatial perception built environment"
+    mobility_trajectory: "human mobility trajectory spatiotemporal movement pattern"
+    sports_space_optional: "sports facility stadium gymnasium spatial behavior VR"
+    healing_space: "healing space restorative environment biophilic design therapeutic landscape"
+
+# -----------------------------
+# （可选）过滤设置：减少“纯算法论文”噪音
+# 说明：如果你发现抓到太多 CV/深度学习纯算法，可以加上 NOT 关键词
+# 注意：arXiv 的 query 语法对 NOT 的支持取决于你用的库/接口实现
+# 如果你的脚本不支持 NOT，可以在代码里做后过滤（title/abstract 关键词排除）
+# -----------------------------
+exclude_keywords:
+  - "segmentation"
+  - "object detection"
+  - "diffusion"
+  - "transformer"
+  - "benchmark"
+  - "large language model"
+  - "LLM"
+  - "GAN"
+
+# -----------------------------
+# （可选）你可以在这里写“必须包含”的关键词，提高相关性
+# 程序若支持，可用于二次过滤；不支持也没关系（留空即可）
+# -----------------------------
+must_have_keywords: []
+
+# -----------------------------
+# 目标期刊监控（通过 OpenAlex ISSN 过滤 + 关键词预筛）
+# 说明：先锁定期刊范围，再用关键词在标题/摘要中预筛
+#       只有命中至少一个关键词的论文才会送去 AI 分析
+#       这样既不漏掉顶刊论文，又不会浪费 LLM API 调用在无关论文上
+# ISSN 可在期刊官网或 OpenAlex (https://openalex.org/sources) 查到
+# -----------------------------
+
+# 期刊论文预筛关键词（标题或摘要中至少命中一个才进入分析流程）
+# 留空 [] 则不预筛，所有期刊论文都送去 AI 分析
+journal_filter_keywords:
+  - "spatial behavior"
+  - "occupant behavior"
+  - "space use"
+  - "built environment"
+  - "indoor"
+  - "architecture"
+  - "virtual reality"
+  - "VR"
+  - "EEG"
+  - "eye tracking"
+  - "gaze"
+  - "spatial perception"
+  - "affordance"
+  - "trajectory"
+  - "mobility"
+  - "movement pattern"
+  - "spatiotemporal"
+  - "activity space"
+  - "sports facility"
+  - "stadium"
+  - "gymnasium"
+  - "campus"
+  - "healing space"
+  - "healing environment"
+  - "therapeutic environment"
+  - "restorative environment"
+  - "restorative design"
+  - "salutogenic"
+  - "biophilic design"
+  - "therapeutic landscape"
+  - "healing garden"
+  - "healing architecture"
+  - "stress recovery"
+  - "attention restoration"
+  - "well-being"
+  - "wellbeing"
+  - "perceived restorativeness"
+  - "nature-based therapy"
+  - "health-promoting"
+target_journals:
+
+  # --- 建筑环境与空间行为 ---
+  - name: "Building and Environment"
+    issn: "0360-1323"
+  - name: "Journal of Building Engineering"
+    issn: "2352-7102"
+  - name: "Environment and Behavior"
+    issn: "0013-9165"
+  - name: "Journal of Environmental Psychology"
+    issn: "0272-4944"
+  - name: "Architectural Science Review"
+    issn: "0003-8628"
+  - name: "Indoor Air"
+    issn: "1600-0668"
+
+  # --- 体育科学与运动空间 ---
+  - name: "Journal of Sports Sciences"
+    issn: "0264-0414"
+  - name: "International Review for the Sociology of Sport"
+    issn: "1012-6902"
+  - name: "European Sport Management Quarterly"
+    issn: "1618-4742"
+
+  # --- VR / 人机交互 / 感知 ---
+  - name: "Virtual Reality"
+    issn: "1359-4338"
+  - name: "Computers in Human Behavior"
+    issn: "0747-5632"
+  - name: "International Journal of Human-Computer Studies"
+    issn: "1071-5819"
+  - name: "Presence Teleoperators and Virtual Environments"
+    issn: "1054-7460"
+
+  # --- 疗愈空间 / 恢复性环境 / 健康促进设计 ---
+  - name: "Health Environments Research and Design Journal"
+    issn: "1937-5867"
+  - name: "Health and Place"
+    issn: "1353-8292"
+  - name: "Landscape and Urban Planning"
+    issn: "0169-2046"
+  - name: "Urban Forestry and Urban Greening"
+    issn: "1618-8667"
+  - name: "International Journal of Environmental Research and Public Health"
+    issn: "1661-7827"
+
+  # --- 行为轨迹 / 时空行为 / 城市空间 ---
+  - name: "Transportation Research Part C"
+    issn: "0968-090X"
+  - name: "Journal of Transport Geography"
+    issn: "0966-6923"
+  - name: "Computers Environment and Urban Systems"
+    issn: "0198-9715"
+  - name: "Applied Geography"
+    issn: "0143-6228"
+
+# -----------------------------
+# 运行与缓存设置
+# -----------------------------
+db_path: "papers.db"          # SQLite 历史库，用于缓存分析结果与去重
+analysis_retries: 3           # LLM 分析失败时的重试次数
+retry_delay_seconds: 3        # 每次重试前的基础等待秒数
+
+# -----------------------------
+# 多文献源设置
+# 可选：arxiv / openalex / crossref / semantic_scholar / europepmc / core
+# europepmc：Europe PMC，覆盖生物医学/神经科学，VR+EEG/眼动方向特别有价值，免费无需认证
+# core：CORE 开放获取聚合器，收录 3 亿+ 文档，需要免费 API key（在 .env 中配置 CORE_API_KEY）
+# -----------------------------
+sources:
+  - arxiv
+  - openalex
+  - crossref
+  - semantic_scholar
+  - europepmc
+  # - core          # 需要在 .env 中配置 CORE_API_KEY 后启用
