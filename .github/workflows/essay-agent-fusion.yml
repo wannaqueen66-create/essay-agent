@@ -103,7 +103,9 @@ jobs:
         if: always() && env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_KEY != ''
         run: |
           export SUPABASE_SCHEMA="${SUPABASE_SCHEMA:-public}"
-          python src/supabase_backup.py --out-dir archive/supabase-backups
+          python src/supabase_backup.py \
+            --tables "${SUPABASE_BACKUP_TABLES:-essay_agent_papers,essay_agent_daily_runs,user_paper_states}" \
+            --out-dir archive/supabase-backups
 
       - name: Upload essay-agent outputs
         if: always()

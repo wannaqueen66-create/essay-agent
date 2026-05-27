@@ -10,7 +10,7 @@ from typing import Any
 import requests
 
 
-DEFAULT_TABLES = "papers,essay_agent_papers,essay_agent_daily_runs"
+DEFAULT_TABLES = "essay_agent_papers,essay_agent_daily_runs,user_paper_states"
 
 
 def _norm(value: Any) -> str:
@@ -67,6 +67,7 @@ def main() -> None:
     parser.add_argument("--tables", default=os.getenv("SUPABASE_BACKUP_TABLES", DEFAULT_TABLES))
     parser.add_argument("--out-dir", default=os.getenv("SUPABASE_BACKUP_DIR", "archive/supabase-backups"))
     parser.add_argument("--page-size", type=int, default=int(os.getenv("SUPABASE_BACKUP_PAGE_SIZE", "1000")))
+    parser.add_argument("--strict", action="store_true", default=False)
     args = parser.parse_args()
 
     if not args.supabase_url or not args.service_key:
@@ -78,7 +79,16 @@ def main() -> None:
     manifest: dict[str, Any] = {"created_at": datetime.now(timezone.utc).isoformat(), "tables": {}}
 
     for table in [x.strip() for x in args.tables.split(",") if x.strip()]:
-        rows = fetch_table(args.supabase_url, args.service_key, args.schema, table, max(int(args.page_size), 1))
+        try:
+            rows = fetch_table(args.supabase_url, args.service_key, args.schema, table, max(int(args.page_size), 1))
+        except RuntimeError as exc:
+            message = str(exc)
+            is_missing_table = "PGRST205" in message or "Could not find the table" in message
+            if args.strict or not is_missing_table:
+                raise
+            manifest["tables"][table] = {"rows": 0, "skipped": True, "reason": message}
+            print(f"[backup] skip missing table {table}: {message}", flush=True)
+            continue
         json_path = os.path.join(target, f"{table}.json")
         csv_path = os.path.join(target, f"{table}.csv")
         with open(json_path, "w", encoding="utf-8") as f:
