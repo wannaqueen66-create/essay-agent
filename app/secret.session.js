@@ -5,11 +5,11 @@
   const STORAGE_KEY_LOCAL_SECRET = 'dpr_local_secret_private_v1';
   const SECRET_FILE_URL = 'secret.private';
   const SECRET_OVERLAY_ANIMATION_MS = 280;
-  const FORCE_GUEST_DOMAIN_TOKEN = 'ziwenhahaha';
+  const FORCE_GUEST_DOMAIN_TOKEN = '';
   let secretOverlayHideTimer = null;
   const isForceGuestDomain = (host) => {
     const normalized = String(host || '').toLowerCase();
-    return normalized.includes(FORCE_GUEST_DOMAIN_TOKEN);
+    return !!FORCE_GUEST_DOMAIN_TOKEN && normalized.includes(FORCE_GUEST_DOMAIN_TOKEN);
   };
   const FORCE_GUEST_MODE = isForceGuestDomain(window && window.location && window.location.hostname);
   const isLocalDebugHost = () => {
@@ -316,26 +316,26 @@
   const RERANKER_PROFILES = [
     {
       value: 'public-zwwen-rerank',
-      label: '公益 Rerank（zwwen.online）',
+      label: '远端智能重排（免配置）',
       provider: 'public_zwwen',
       model: 'Qwen/Qwen3-Reranker-0.6B',
       baseUrl: 'https://zwwen.online/rerank',
       requiresApiKey: false,
       testApiKey: '26932a86d772001af60cbd9d2c162bfda3a90e094f797f3d6806f6077478b27a',
-      note: '默认推荐；使用 zwwen.online 公益 rerank 服务。',
+      note: '默认智能重排服务；无需单独 API Key。',
     },
     {
       value: 'local-qwen3-0.6b',
-      label: '本地 Qwen3-Reranker-0.6B',
+      label: '本地智能重排（Qwen3 0.6B）',
       provider: 'local',
       model: 'Qwen/Qwen3-Reranker-0.6B',
       baseUrl: '',
       requiresApiKey: false,
-      note: '无需 reranker API Key，GitHub Actions 在 CPU 上加载本地模型。',
+      note: '无需智能重排 API Key，GitHub Actions 在 CPU 上加载本地模型。',
     },
     {
       value: 'siliconflow-qwen3-0.6b',
-      label: '硅基流动 Qwen3-Reranker-0.6B',
+      label: '自定义远端智能重排（SiliconFlow）',
       provider: 'siliconflow',
       model: 'Qwen/Qwen3-Reranker-0.6B',
       baseUrl: 'https://api.siliconflow.cn/v1/rerank',
@@ -516,7 +516,7 @@
 
     if (host === 'localhost' || host === '127.0.0.1') {
       repoOwner = login;
-      repoName = 'daily-paper-reader';
+      repoName = 'essay-agent';
     } else {
       const githubPagesMatch = currentUrl.match(
         /https?:\/\/([^.]+)\.github\.io\/([^\/]+)/,
@@ -654,7 +654,7 @@
         throw new Error('总结模型配置不完整，无法写入 GitHub Secrets。');
       }
       if (!rerankerProfile || !rerankerProvider || !rerankerModel) {
-        throw new Error('Reranker 配置不完整，无法写入 GitHub Secrets。');
+        throw new Error('智能重排配置不完整，无法写入 GitHub Secrets。');
       }
 
       const secretNameSummKey = 'Summarized_LLM_API_KEY';
@@ -1088,7 +1088,7 @@
       }, 100);
     };
 
-    // 初始化向导：第 2 步（仅保留 DeepSeek API）
+    // 初始化向导：第 2 步（模型 API + 智能重排）
     const renderInitStep2 = (password) => {
       setStep2Modal(true);
       const currentSecret =
@@ -1111,9 +1111,9 @@
       const deepseekSummaryModels = getDefaultDeepSeekChatModels().map((model) => ({
         value: model,
         label: model === 'deepseek-v4-flash'
-          ? 'DeepSeek V4 Flash · 默认推荐'
+          ? 'Fast model · default'
           : model === 'deepseek-v4-pro'
-            ? 'DeepSeek V4 Pro · 高性能模型'
+            ? 'High-capability model'
             : model,
       }));
 
@@ -1144,16 +1144,16 @@
             </div>
 
             <div id="secret-setup-deepseek-section" class="secret-setup-step2-block">
-              <div class="secret-setup-step2-title">DeepSeek API（必填）</div>
+              <div class="secret-setup-step2-title">Model API（必填）</div>
               <p class="secret-setup-step2-note">
-                DeepSeek 用于 query enrich、LLM refine、总结与聊天；Reranker 可在右侧单独选择。
+                模型 API 用于 query enrich、AI 精读、总结与聊天；智能重排可在右侧单独选择。
               </p>
               <div class="secret-setup-input-row multi-actions">
                 <input
                   id="secret-setup-deepseek"
                   type="password"
                   autocomplete="off"
-                  placeholder="DeepSeek API Key，例如：sk-xxxx"
+                  placeholder="Model API Key，例如：sk-xxxx"
                   style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:13px;"
                 />
                 <button id="secret-setup-deepseek-test" type="button" class="secret-gate-btn secondary">
@@ -1164,15 +1164,15 @@
                 </button>
               </div>
               <div id="secret-setup-deepseek-status" style="min-height:18px; font-size:12px; color:#999; margin-bottom:8px;">
-                将通过一次 <code>hello world</code> 请求检查 DeepSeek 配置可用性。
+                将通过一次 <code>hello world</code> 请求检查模型 API 配置可用性。
               </div>
 
               <div style="font-weight:500; margin-bottom:4px; display:flex; align-items:center; gap:4px;">
                 用于工作流总结 / 过滤的大模型
                 <span class="secret-model-tip">!
                   <span class="secret-model-tip-popup">
-                    当前只保留 DeepSeek 官方 API。<br/>
-                    Reranker API Key 与 DeepSeek 分开配置。
+                    默认使用 OpenAI-compatible Chat Completions 接口。<br/>
+                    智能重排 API Key 与模型 API 分开配置。
                   </span>
                 </span>
               </div>
@@ -1184,9 +1184,9 @@
 
           <div class="secret-setup-step2-col">
             <div class="secret-setup-step2-block">
-              <div class="secret-setup-step2-title">Reranker</div>
+              <div class="secret-setup-step2-title">智能重排</div>
               <p class="secret-setup-step2-note">
-                Step 3 使用 Qwen3 reranker 对候选论文重排。请选择本地模型或远端服务。
+                Step 3 对候选论文进行智能重排。请选择本地模型或远端服务。
               </p>
               <select id="secret-setup-reranker-profile" class="secret-setup-select" style="margin-bottom:8px;"></select>
               <div id="secret-setup-reranker-remote-fields" style="display:none;">
@@ -1195,7 +1195,7 @@
                     id="secret-setup-reranker-api-key"
                     type="password"
                     autocomplete="off"
-                    placeholder="Reranker API Key"
+                    placeholder="智能重排 API Key"
                     style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:13px;"
                   />
                 </div>
@@ -1204,15 +1204,15 @@
                     id="secret-setup-reranker-base-url"
                     type="text"
                     autocomplete="off"
-                    placeholder="Rerank Base URL，例如 https://api.siliconflow.cn/v1/rerank"
+                    placeholder="智能重排 Base URL，例如 https://api.siliconflow.cn/v1/rerank"
                     style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:13px;"
                   />
                 </div>
                 <button id="secret-setup-reranker-test" type="button" class="secret-gate-btn secondary secret-setup-step2-actions">
-                  测试 Reranker
+                  测试智能重排
                 </button>
                 <div id="secret-setup-reranker-test-status" style="min-height:18px; font-size:12px; color:#999; margin-top:6px;">
-                  将发送一次最小 rerank 请求验证 API Key、Base URL 与模型是否可用。
+                  将发送一次最小重排请求验证 API Key、Base URL 与模型是否可用。
                 </div>
               </div>
               <div id="secret-setup-reranker-status" style="font-size:12px; color:#666; line-height:1.6;"></div>
@@ -1364,13 +1364,13 @@
           rerankerBaseUrlInput.getAttribute('data-reranker-profile') || '',
         );
         const currentBaseUrl = normalizeText(rerankerBaseUrlInput.value || '');
-        rerankerRemoteFields.style.display = isRemote ? 'block' : 'none';
+        rerankerRemoteFields.style.display = isRemote && requiresApiKey ? 'block' : 'none';
         if (isRemote) {
           rerankerApiKeyInput.closest('.secret-setup-input-row').style.display = requiresApiKey ? 'block' : 'none';
           rerankerApiKeyInput.disabled = !requiresApiKey;
           rerankerApiKeyInput.placeholder = requiresApiKey
-            ? 'Reranker API Key'
-            : '公益 Reranker 无需 API Key';
+            ? '智能重排 API Key'
+            : '免配置远端智能重排无需 API Key';
           if (!requiresApiKey) {
             rerankerApiKeyInput.value = '';
           }
@@ -1404,7 +1404,7 @@
       const resetDeepSeekStatus = () => {
         deepseekOk = false;
         deepseekStatusEl.innerHTML =
-          '将通过一次 <code>hello world</code> 请求检查 DeepSeek 配置可用性。';
+          '将通过一次 <code>hello world</code> 请求检查模型 API 配置可用性。';
         deepseekStatusEl.style.color = '#999';
       };
       const resetCustomStatus = () => {
@@ -1415,8 +1415,8 @@
       const resetRerankerTestStatus = () => {
         const profile = selectedRerankerProfile();
         rerankerTestStatusEl.textContent = rerankerRequiresApiKey(profile)
-          ? '将发送一次最小 rerank 请求验证 API Key、Base URL 与模型是否可用。'
-          : '将发送一次最小 rerank 请求验证 Base URL 与模型是否可用。';
+          ? '将发送一次最小重排请求验证 API Key、Base URL 与模型是否可用。'
+          : '将发送一次最小重排请求验证 Base URL 与模型是否可用。';
         rerankerTestStatusEl.style.color = '#999';
       };
       const buildRerankerDraft = (fallbackApiKey, fallbackBaseUrl) => {
@@ -1430,10 +1430,10 @@
         const requiresApiKey = rerankerRequiresApiKey(profile);
 
         if (requiresApiKey && !apiKey) {
-          throw new Error(`选择 ${profile.label} 时需要填写 Reranker API Key。`);
+          throw new Error(`选择 ${profile.label} 时需要填写智能重排 API Key。`);
         }
         if (profile.provider !== 'local' && !baseUrl) {
-          throw new Error(`请选择 ${profile.label} 时需要填写 Rerank Base URL。`);
+          throw new Error(`选择 ${profile.label} 时需要填写智能重排 Base URL。`);
         }
 
         return {
@@ -1458,7 +1458,7 @@
         const apiKey = normalizeText(deepseekInput.value);
         const model = selectedDeepSeekModel();
         if (!apiKey) {
-          throw new Error('请先输入 DeepSeek API Key。');
+          throw new Error('请先输入模型 API Key。');
         }
         if (!model) {
           throw new Error('请选择用于工作流总结的大模型。');
@@ -1481,7 +1481,7 @@
         const apiKey = normalizeText(deepseekInput.value);
         const model = selectedDeepSeekModel();
         if (!apiKey || !model) {
-          throw new Error('请先填写 DeepSeek API Key 并选择模型。');
+          throw new Error('请先填写模型 API Key 并选择模型。');
         }
         return [
           {
@@ -1505,7 +1505,7 @@
         githubStatusEl.style.color = '#666';
       }
       if (initialApiKey) {
-        deepseekStatusEl.textContent = '已载入当前 DeepSeek 配置；如更换 API Key 或模型，建议点击测试按钮。';
+        deepseekStatusEl.textContent = '已载入当前模型 API 配置；如更换 API Key 或模型，建议点击测试按钮。';
         deepseekStatusEl.style.color = '#666';
       }
 
@@ -1532,18 +1532,18 @@
           return;
         }
         if (draft.provider === 'local') {
-          rerankerTestStatusEl.textContent = '当前选择为本地 reranker，无需远端测试。';
+          rerankerTestStatusEl.textContent = '当前选择为本地智能重排，无需远端测试。';
           rerankerTestStatusEl.style.color = '#666';
           return;
         }
         const endpoint = buildRerankEndpoint(draft.baseUrl);
         if (!endpoint) {
-          rerankerTestStatusEl.textContent = '❌ 请填写 Rerank Base URL。';
+          rerankerTestStatusEl.textContent = '❌ 请填写智能重排 Base URL。';
           rerankerTestStatusEl.style.color = '#c00';
           return;
         }
         rerankerTestBtn.disabled = true;
-        rerankerTestStatusEl.textContent = '正在测试远端 Reranker...';
+        rerankerTestStatusEl.textContent = '正在测试远端智能重排...';
         rerankerTestStatusEl.style.color = '#666';
         try {
           const headers = {
@@ -1575,7 +1575,7 @@
           if (!data || !Array.isArray(data.results)) {
             throw new Error('响应缺少 results 字段。');
           }
-          rerankerTestStatusEl.textContent = `✅ Reranker 可用：返回 ${data.results.length} 条结果。`;
+          rerankerTestStatusEl.textContent = `✅ 智能重排可用：返回 ${data.results.length} 条结果。`;
           rerankerTestStatusEl.style.color = '#28a745';
         } catch (e) {
           rerankerTestStatusEl.textContent = `❌ 测试失败：${e.message || e}`;
@@ -1588,7 +1588,7 @@
         input.addEventListener('change', () => {
           syncProviderSections();
           setErrorText(
-            'DeepSeek 密钥将加密写入 GitHub Secrets（用于 GitHub Actions），并同步生成本地 secret.private 备份。',
+            '模型 API 密钥将加密写入 GitHub Secrets（用于 GitHub Actions），并同步生成本地 secret.private 备份。',
             '#999',
           );
         });
@@ -1651,13 +1651,13 @@
       deepseekVerifyBtn.addEventListener('click', async () => {
         const key = normalizeText(deepseekInput.value);
         if (!key) {
-          deepseekStatusEl.textContent = '请先输入 DeepSeek API Key。';
+          deepseekStatusEl.textContent = '请先输入模型 API Key。';
           deepseekStatusEl.style.color = '#c00';
           deepseekOk = false;
           return;
         }
         deepseekVerifyBtn.disabled = true;
-        deepseekStatusEl.textContent = '正在测试 DeepSeek 配置...';
+        deepseekStatusEl.textContent = '正在测试模型 API 配置...';
         deepseekStatusEl.style.color = '#666';
         try {
           const models = await pingChatModels(buildPingEntries(), deepseekStatusEl);
@@ -1708,7 +1708,7 @@
         }
 
         if (providerDraft.providerType === 'deepseek' && !deepseekOk) {
-          setErrorText('请先点击“测试当前配置”，确认 DeepSeek 配置可用。', '#c00');
+          setErrorText('请先点击“测试当前配置”，确认模型 API 配置可用。', '#c00');
           return;
         }
 

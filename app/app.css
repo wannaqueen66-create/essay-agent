@@ -2016,6 +2016,34 @@ body.dpr-paper-page .dpr-title-bar.dpr-title-single .dpr-title-en {
   }
 }
 
+html[data-scholar-lang="zh"] [data-i18n-en],
+html[data-scholar-lang="en"] [data-i18n-zh] {
+  display: none !important;
+}
+
+.scholarlens-language-toggle {
+  position: fixed;
+  right: 18px;
+  top: 16px;
+  z-index: 2300;
+  border: 1px solid rgba(22, 54, 38, 0.18);
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #173525;
+  box-shadow: 0 10px 26px rgba(20, 42, 30, 0.13);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.scholarlens-language-toggle:hover {
+  background: #f5fbf6;
+  border-color: rgba(31, 95, 62, 0.34);
+}
+
 .essay-agent-workbench {
   max-width: 1180px;
   margin: 0 auto;
@@ -2044,6 +2072,29 @@ body.dpr-paper-page .dpr-title-bar.dpr-title-single .dpr-title-en {
   margin: 0 0 10px;
   font-size: clamp(32px, 6vw, 64px);
   line-height: 0.95;
+}
+
+.essay-agent-hero p {
+  max-width: 860px;
+  margin: 0;
+  line-height: 1.72;
+}
+
+.essay-agent-capability-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.essay-agent-capability-strip span {
+  border: 1px solid rgba(16, 32, 24, 0.12);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: rgba(255, 255, 255, 0.54);
+  color: #173525;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .essay-agent-toolbar,
@@ -2168,6 +2219,11 @@ body.dpr-paper-page .dpr-title-bar.dpr-title-single .dpr-title-en {
 }
 
 @media (max-width: 720px) {
+  .scholarlens-language-toggle {
+    right: 12px;
+    top: 10px;
+  }
+
   .essay-agent-toolbar,
   .essay-agent-auth {
     grid-template-columns: 1fr;

@@ -200,7 +200,7 @@ window.SubscriptionsGithubToken = (function () {
 
       // 3. 获取当前页面的仓库信息
       // 规则：
-      // - 若运行在 localhost（含 127.0.0.1），默认仓库名为 daily-paper-reader，owner 为当前登录用户
+      // - 若运行在 localhost（含 127.0.0.1），默认仓库名为 essay-agent，owner 为当前登录用户
       // - 若运行在 username.github.io/repo-name，则从 URL 解析 owner/repo
       // - 其它域名：尝试从当前站点 config.yaml 中读取 github 信息
       const currentUrl = window.location.href;
@@ -213,7 +213,7 @@ window.SubscriptionsGithubToken = (function () {
       // 情况 A：本地开发（localhost 或 127.0.0.1）
       if (host === 'localhost' || host === '127.0.0.1') {
         repoOwner = userData.login || '';
-        repoName = 'daily-paper-reader';
+        repoName = 'essay-agent';
       } else {
         // 情况 B：GitHub Pages
         const githubPagesMatch = currentUrl.match(
@@ -529,7 +529,7 @@ window.SubscriptionsGithubToken = (function () {
           用户: ${data.login || ''}<br>
           仓库: ${data.repo || ''}<br>
           权限: ${scopes.join(', ')}<br>
-          Gist 分享: 已开启
+          分享快照: 已开启
         </div>
       `;
     };
@@ -647,7 +647,7 @@ window.SubscriptionsGithubToken = (function () {
             result.scopes && result.scopes.length
               ? `现有权限: ${result.scopes.join(', ')}<br>`
               : '现有权限: （无）<br>';
-          const gistHint = '当前配置要求使用 Classic PAT，并同时具备 repo、workflow、gist 权限。<br>';
+          const gistHint = '当前配置要求使用 Classic PAT，并同时具备 repo、workflow、gist 权限，用于工作流触发和分享快照。<br>';
           githubTokenMessage.innerHTML = `
             <div style="font-size:12px; line-height:1.6;">
               ${userText}${scopesText}${gistHint}

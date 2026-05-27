@@ -1,6 +1,6 @@
 // Docsify 配置与公共插件（评论区 + Zotero 元数据）
 window.$docsify = {
-  name: 'Daily Paper Reader',
+  name: 'ScholarLens',
   repo: '',
   // 文档内容与侧边栏都存放在 docs/ 下
   basePath: 'docs/', // 所有 Markdown 路由以 docs/ 为前缀
@@ -51,14 +51,14 @@ window.$docsify = {
       });
 
       const metaFallbacks = {
-        citation_title: 'Daily Paper Reader Default Entry',
-        citation_journal_title: 'arxiv',
-        citation_pdf_url: 'https://daily-paper-reader.invalid/default.pdf',
+        citation_title: 'ScholarLens Default Entry',
+        citation_journal_title: 'ScholarLens',
+        citation_pdf_url: 'https://scholarlens.invalid/default.pdf',
         citation_publication_date: '2024-01-01',
         citation_date: '2024/01/01',
       };
 
-      const defaultAuthors = ['Daily Paper Reader Team', 'Docsify Renderer'];
+      const defaultAuthors = ['ScholarLens', 'Docsify Renderer'];
 
       // Zotero 摘要结构标记：方便后续在 Zotero 插件中重新解析
       const START_MARKER = '【🤖 AI Summary】';
@@ -2290,7 +2290,7 @@ window.$docsify = {
         const pageUrl = `${String(window.location.origin || '').replace(/\/+$/, '')}/#/${paperId}`;
         const parts = [];
 
-        parts.push('<!-- Shared by Daily Paper Reader -->');
+        parts.push('<!-- Shared by ScholarLens -->');
         parts.push('');
         parts.push(`# ${heading}`);
         if (subtitle) {
@@ -2350,7 +2350,7 @@ window.$docsify = {
         overlay.id = 'dpr-gist-share-overlay';
         overlay.innerHTML = `
           <div class="dpr-gist-share-modal" role="dialog" aria-modal="true">
-            <div class="dpr-gist-share-title">分享链接</div>
+            <div class="dpr-gist-share-title">分享快照</div>
             <div class="dpr-gist-share-row">
               <input class="dpr-gist-share-input" type="text" readonly />
               <button class="dpr-gist-share-copy" type="button">复制</button>
@@ -2412,7 +2412,7 @@ window.$docsify = {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            description: '论文分享（Daily Paper Reader）',
+            description: 'ScholarLens paper share snapshot',
             public: false,
             files: {
               [filename]: { content },
@@ -2457,7 +2457,7 @@ window.$docsify = {
         const data = await createGist(token, filename, content);
         const url = data && data.html_url ? String(data.html_url) : '';
         const preview = data && data.id ? `https://gist.io/${data.id}` : '';
-        showShareModal(url, preview ? `精美预览：${preview}` : '');
+        showShareModal(url, preview ? `分享快照预览：${preview}` : '');
       };
 
 	      const markSidebarReadState = (currentPaperId) => {
@@ -2569,7 +2569,7 @@ window.$docsify = {
 
               const shareIcon = document.createElement('button');
               shareIcon.className = 'sidebar-paper-share-icon';
-              shareIcon.title = '分享（生成 GitHub Gist 链接）';
+              shareIcon.title = '分享快照';
               shareIcon.setAttribute('aria-label', '分享');
               shareIcon.textContent = '⤴';
 

@@ -1,6 +1,103 @@
 window.EssayAgentWorkbench = (function () {
   const ACCESS_TOKEN_KEY = 'essay_agent_supabase_access_token_v1';
 
+  const I18N = {
+    zh: {
+      sourceFallback: '来源',
+      relevance: '相关性',
+      topic: '主题',
+      method: '方法',
+      conclusion: '结论',
+      details: '摘要 / 结构化分析',
+      original: '原文链接',
+      favorite: '收藏',
+      unfavorite: '取消收藏',
+      markRead: '标记已读',
+      markUnread: '标记未读',
+      noteLabel: '个人笔记',
+      notePlaceholder: '登录后保存到 Supabase',
+      saveNote: '保存笔记',
+      kicker: 'ScholarLens',
+      title: 'essay-agent 文献工作台',
+      subtitle: '以 essay-agent 的建筑学、体育空间、VR、空间行为、行为轨迹与疗愈空间配置为准，集中浏览多源监测、中文结构化分析、领域相关性和个人阅读状态。',
+      capabilities: [
+        '多源监测',
+        '中文结构化分析',
+        '语义召回',
+        '智能重排',
+        'AI 精读',
+        '知识库同步',
+        '分享快照',
+        '邮件日报',
+        '每日备份',
+      ],
+      queryPlaceholder: '搜索标题、摘要或中文分析',
+      sourcePlaceholder: '来源：arxiv / openalex / crossref',
+      minScorePlaceholder: '最低相关性',
+      search: '筛选',
+      tokenPlaceholder: 'Supabase access token，用于收藏、已读和笔记',
+      saveToken: '保存 token',
+      clear: '清除',
+      ready: '准备就绪。',
+      tokenSaved: 'Token 已保存',
+      readOnly: '只读模式',
+      loading: '正在加载...',
+      loaded: (count) => `已加载 ${count} 篇论文`,
+      loadFailed: (message) => `加载失败：${message}`,
+      saveFailed: (message) => `保存失败：${message}`,
+      noteSaved: '笔记已保存',
+      missingToken: '请先粘贴 Supabase access token，再保存个人状态。',
+      sidebar: 'ScholarLens 文献工作台',
+    },
+    en: {
+      sourceFallback: 'Source',
+      relevance: 'Relevance',
+      topic: 'Topic',
+      method: 'Method',
+      conclusion: 'Conclusion',
+      details: 'Abstract / Structured Analysis',
+      original: 'Original',
+      favorite: 'Favorite',
+      unfavorite: 'Unfavorite',
+      markRead: 'Mark read',
+      markUnread: 'Mark unread',
+      noteLabel: 'Personal note',
+      notePlaceholder: 'Saved to Supabase after sign-in',
+      saveNote: 'Save note',
+      kicker: 'ScholarLens',
+      title: 'essay-agent Paper Workbench',
+      subtitle: 'Browse multi-source monitoring, Chinese structured analysis, domain relevance, and personal reading state driven by essay-agent domains: architecture, sports space, VR, spatial behavior, movement traces, and healing space.',
+      capabilities: [
+        'Multi-source monitoring',
+        'Chinese structured analysis',
+        'Semantic recall',
+        'Intelligent reranking',
+        'AI reading',
+        'Knowledge sync',
+        'Share snapshot',
+        'Email digest',
+        'Daily backup',
+      ],
+      queryPlaceholder: 'Search title, abstract, or Chinese analysis',
+      sourcePlaceholder: 'Source: arxiv / openalex / crossref',
+      minScorePlaceholder: 'Min relevance',
+      search: 'Filter',
+      tokenPlaceholder: 'Supabase access token for favorites, read state, and notes',
+      saveToken: 'Save token',
+      clear: 'Clear',
+      ready: 'Ready.',
+      tokenSaved: 'Token saved',
+      readOnly: 'Read-only',
+      loading: 'Loading...',
+      loaded: (count) => `Loaded ${count} papers`,
+      loadFailed: (message) => `Load failed: ${message}`,
+      saveFailed: (message) => `Save failed: ${message}`,
+      noteSaved: 'Note saved',
+      missingToken: 'Paste a Supabase access token before saving user state.',
+      sidebar: 'ScholarLens Workbench',
+    },
+  };
+
   const escapeHtml = (value) => String(value || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -9,6 +106,13 @@ window.EssayAgentWorkbench = (function () {
     .replace(/'/g, '&#39;');
 
   const normalizeText = (value) => String(value || '').trim();
+
+  const currentLang = () => {
+    const helper = window.ScholarLensI18n;
+    return helper && typeof helper.getLang === 'function' ? helper.getLang() : 'zh';
+  };
+
+  const t = () => I18N[currentLang()] || I18N.zh;
 
   const getConfig = () => {
     const backend =
@@ -123,7 +227,7 @@ window.EssayAgentWorkbench = (function () {
 
   const upsertUserState = async (cfg, paperId, patch) => {
     const token = getAccessToken();
-    if (!token) throw new Error('Paste a Supabase access token before saving user state.');
+    if (!token) throw new Error(t().missingToken);
     const payload = {
       paper_id: paperId,
       source_table: 'essay_agent_papers',
@@ -139,64 +243,71 @@ window.EssayAgentWorkbench = (function () {
   };
 
   const renderPaperCard = (paper, userState) => {
+    const copy = t();
     const analysis = paper.analysis && typeof paper.analysis === 'object' ? paper.analysis : {};
     const score = Number(paper.domain_relevance_score || 0);
     const note = userState && userState.note ? userState.note : '';
+    const favoriteLabel = userState && userState.is_favorite ? copy.unfavorite : copy.favorite;
+    const readLabel = userState && userState.is_read ? copy.markUnread : copy.markRead;
     return `
       <article class="essay-agent-card" data-paper-id="${escapeHtml(paper.id)}">
         <div class="essay-agent-card-topline">
-          <span>${escapeHtml(paper.source || 'source')}</span>
+          <span>${escapeHtml(paper.source || copy.sourceFallback)}</span>
           <span>${escapeHtml((paper.published || '').slice(0, 10))}</span>
-          <span class="essay-agent-score">Score ${score}</span>
+          <span class="essay-agent-score">${copy.relevance} ${score}</span>
           ${paper.domain_query ? `<span>${escapeHtml(paper.domain_query)}</span>` : ''}
         </div>
         <h2>${escapeHtml(paper.title)}</h2>
         <p class="essay-agent-summary">${escapeHtml(paper.chinese_summary || analysis['中文摘要'] || paper.abstract || '')}</p>
         <div class="essay-agent-fields">
-          ${analysis['研究主题'] ? `<span>主题: ${escapeHtml(analysis['研究主题'])}</span>` : ''}
-          ${analysis['研究方法'] ? `<span>方法: ${escapeHtml(analysis['研究方法'])}</span>` : ''}
-          ${analysis['主要结论'] ? `<span>结论: ${escapeHtml(analysis['主要结论'])}</span>` : ''}
+          ${analysis['研究主题'] ? `<span>${copy.topic}: ${escapeHtml(analysis['研究主题'])}</span>` : ''}
+          ${analysis['研究方法'] ? `<span>${copy.method}: ${escapeHtml(analysis['研究方法'])}</span>` : ''}
+          ${analysis['主要结论'] ? `<span>${copy.conclusion}: ${escapeHtml(analysis['主要结论'])}</span>` : ''}
         </div>
         <details>
-          <summary>Abstract / structured analysis</summary>
+          <summary>${copy.details}</summary>
           <p>${escapeHtml(paper.abstract || '')}</p>
           <pre>${escapeHtml(JSON.stringify(analysis, null, 2))}</pre>
         </details>
         <div class="essay-agent-card-actions">
-          <a href="${escapeHtml(paper.link || '#')}" target="_blank" rel="noopener">Original</a>
-          <button type="button" data-action="favorite">${userState && userState.is_favorite ? 'Unfavorite' : 'Favorite'}</button>
-          <button type="button" data-action="read">${userState && userState.is_read ? 'Mark unread' : 'Mark read'}</button>
+          <a href="${escapeHtml(paper.link || '#')}" target="_blank" rel="noopener">${copy.original}</a>
+          <button type="button" data-action="favorite" data-next="${userState && userState.is_favorite ? '0' : '1'}">${favoriteLabel}</button>
+          <button type="button" data-action="read" data-next="${userState && userState.is_read ? '0' : '1'}">${readLabel}</button>
         </div>
         <label class="essay-agent-note-label">
-          Personal note
-          <textarea data-role="note" placeholder="Saved to Supabase after login">${escapeHtml(note)}</textarea>
+          ${copy.noteLabel}
+          <textarea data-role="note" placeholder="${escapeHtml(copy.notePlaceholder)}">${escapeHtml(note)}</textarea>
         </label>
-        <button type="button" data-action="save-note">Save note</button>
+        <button type="button" data-action="save-note">${copy.saveNote}</button>
       </article>
     `;
   };
 
   const renderShell = (root) => {
+    const copy = t();
     root.innerHTML = `
       <section class="essay-agent-workbench">
         <header class="essay-agent-hero">
-          <p class="essay-agent-kicker">essay-agent fusion</p>
-          <h1>中文文献阅读工作台</h1>
-          <p>Browse essay-agent multi-source papers, Chinese structured analysis, domain relevance scores, and personal reading state.</p>
+          <p class="essay-agent-kicker">${copy.kicker}</p>
+          <h1>${copy.title}</h1>
+          <p>${copy.subtitle}</p>
+          <div class="essay-agent-capability-strip">
+            ${copy.capabilities.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}
+          </div>
         </header>
         <div class="essay-agent-toolbar">
-          <input data-role="query" placeholder="Search title, abstract, or Chinese summary" />
-          <input data-role="source" placeholder="Source: arxiv / openalex" />
-          <input data-role="min-score" type="number" min="0" max="100" placeholder="Min score" />
-          <button type="button" data-action="search">Search</button>
+          <input data-role="query" placeholder="${escapeHtml(copy.queryPlaceholder)}" />
+          <input data-role="source" placeholder="${escapeHtml(copy.sourcePlaceholder)}" />
+          <input data-role="min-score" type="number" min="0" max="100" placeholder="${escapeHtml(copy.minScorePlaceholder)}" />
+          <button type="button" data-action="search">${copy.search}</button>
         </div>
         <div class="essay-agent-auth">
-          <input data-role="access-token" type="password" placeholder="Supabase access token for favorite/read/note" />
-          <button type="button" data-action="save-token">Save token</button>
-          <button type="button" data-action="clear-token">Clear</button>
+          <input data-role="access-token" type="password" placeholder="${escapeHtml(copy.tokenPlaceholder)}" />
+          <button type="button" data-action="save-token">${copy.saveToken}</button>
+          <button type="button" data-action="clear-token">${copy.clear}</button>
           <span data-role="auth-status"></span>
         </div>
-        <div class="essay-agent-status" data-role="status">Ready.</div>
+        <div class="essay-agent-status" data-role="status">${copy.ready}</div>
         <div class="essay-agent-grid" data-role="list"></div>
       </section>
     `;
@@ -209,18 +320,18 @@ window.EssayAgentWorkbench = (function () {
     const authStatusEl = root.querySelector('[data-role="auth-status"]');
     const tokenInput = root.querySelector('[data-role="access-token"]');
     if (tokenInput) tokenInput.value = getAccessToken();
-    if (authStatusEl) authStatusEl.textContent = getAccessToken() ? 'Token saved' : 'Read-only';
+    if (authStatusEl) authStatusEl.textContent = getAccessToken() ? t().tokenSaved : t().readOnly;
 
     const load = async () => {
       try {
-        statusEl.textContent = 'Loading...';
+        statusEl.textContent = t().loading;
         const rows = await requestJson(cfg, buildPapersQuery(cfg, state));
         const papers = Array.isArray(rows) ? rows : [];
         const userStates = await loadUserStates(cfg, papers.map((p) => p.id).filter(Boolean));
         listEl.innerHTML = papers.map((paper) => renderPaperCard(paper, userStates[paper.id])).join('');
-        statusEl.textContent = `Loaded ${papers.length} papers`;
+        statusEl.textContent = t().loaded(papers.length);
       } catch (err) {
-        statusEl.textContent = `Load failed: ${err && err.message ? err.message : err}`;
+        statusEl.textContent = t().loadFailed(err && err.message ? err.message : err);
       }
     };
 
@@ -233,14 +344,14 @@ window.EssayAgentWorkbench = (function () {
 
     root.querySelector('[data-action="save-token"]').addEventListener('click', () => {
       setAccessToken(root.querySelector('[data-role="access-token"]').value);
-      if (authStatusEl) authStatusEl.textContent = getAccessToken() ? 'Token saved' : 'Read-only';
+      if (authStatusEl) authStatusEl.textContent = getAccessToken() ? t().tokenSaved : t().readOnly;
       load();
     });
 
     root.querySelector('[data-action="clear-token"]').addEventListener('click', () => {
       setAccessToken('');
       if (tokenInput) tokenInput.value = '';
-      if (authStatusEl) authStatusEl.textContent = 'Read-only';
+      if (authStatusEl) authStatusEl.textContent = t().readOnly;
       load();
     });
 
@@ -253,20 +364,18 @@ window.EssayAgentWorkbench = (function () {
       const action = button.getAttribute('data-action');
       try {
         if (action === 'favorite') {
-          const next = button.textContent.indexOf('Unfavorite') < 0;
-          await upsertUserState(cfg, paperId, { is_favorite: next });
+          await upsertUserState(cfg, paperId, { is_favorite: button.getAttribute('data-next') === '1' });
           await load();
         } else if (action === 'read') {
-          const next = button.textContent.indexOf('unread') < 0;
-          await upsertUserState(cfg, paperId, { is_read: next });
+          await upsertUserState(cfg, paperId, { is_read: button.getAttribute('data-next') === '1' });
           await load();
         } else if (action === 'save-note') {
           const note = card.querySelector('[data-role="note"]');
           await upsertUserState(cfg, paperId, { note: note ? note.value : '' });
-          statusEl.textContent = 'Note saved';
+          statusEl.textContent = t().noteSaved;
         }
       } catch (err) {
-        statusEl.textContent = `Save failed: ${err && err.message ? err.message : err}`;
+        statusEl.textContent = t().saveFailed(err && err.message ? err.message : err);
       }
     });
 
@@ -283,11 +392,16 @@ window.EssayAgentWorkbench = (function () {
   const installSidebarEntry = () => {
     try {
       const nav = document.querySelector('.sidebar-nav');
-      if (!nav || nav.querySelector('[data-essay-agent-workbench-link]')) return;
-      const ul = nav.querySelector('ul') || nav;
-      const li = document.createElement('li');
-      li.innerHTML = '<a class="dpr-sidebar-root-link" data-essay-agent-workbench-link href="#/essay-agent-workbench">essay-agent Workbench</a>';
-      ul.insertBefore(li, ul.children && ul.children.length > 1 ? ul.children[1] : null);
+      if (!nav) return;
+      let link = nav.querySelector('[data-essay-agent-workbench-link]');
+      if (!link) {
+        const ul = nav.querySelector('ul') || nav;
+        const li = document.createElement('li');
+        li.innerHTML = '<a class="dpr-sidebar-root-link" data-essay-agent-workbench-link href="#/essay-agent-workbench"></a>';
+        ul.insertBefore(li, ul.children && ul.children.length > 1 ? ul.children[1] : null);
+        link = li.querySelector('[data-essay-agent-workbench-link]');
+      }
+      if (link) link.textContent = t().sidebar;
     } catch {
       // ignore
     }
@@ -296,6 +410,11 @@ window.EssayAgentWorkbench = (function () {
   document.addEventListener('DOMContentLoaded', installSidebarEntry);
   document.addEventListener('dpr-docsify-ready', installSidebarEntry);
   document.addEventListener('dpr-deferred-assets-ready', installSidebarEntry);
+  document.addEventListener('scholarlens-language-change', () => {
+    installSidebarEntry();
+    const root = document.getElementById('essay-agent-workbench-root');
+    if (root) render(root);
+  });
 
   return { render, installSidebarEntry };
 })();

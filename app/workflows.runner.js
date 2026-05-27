@@ -7,7 +7,7 @@ window.DPRWorkflowRunner = (function () {
       key: 'daily-now',
       id: 'daily-paper-reader.yml',
       name: '立即爬取并处理论文',
-      desc: '触发 daily-paper-reader 工作流（抓取→召回→重排→生成 docs）。',
+      desc: 'Run the ScholarLens paper pipeline: crawl, semantic recall, intelligent reranking, AI reading, and docs generation.',
       dispatchInputs: {
         run_enrich: 'false',
       },
@@ -15,8 +15,8 @@ window.DPRWorkflowRunner = (function () {
     {
       key: 'sync',
       id: 'sync.yml',
-      name: '同步上游代码',
-      desc: '触发 Upstream Sync 工作流（合并上游 main 到当前仓库）。',
+      name: '技术基座同步',
+      desc: '可选：同步技术基座更新，仅在 fork 场景下使用。',
     },
     {
       key: 'reset-content',
@@ -136,14 +136,14 @@ window.DPRWorkflowRunner = (function () {
       return { owner: githubPagesMatch[1], repo: githubPagesMatch[2] };
     }
 
-    // 非 GitHub Pages URL：回退到「Token 对应的用户 + daily-paper-reader」作为默认目标仓库
+    // Non-GitHub Pages URL: default to the token owner and essay-agent repository.
     try {
       const userRes = await ghFetch(token, 'https://api.github.com/user');
       if (userRes.ok) {
         const user = await userRes.json();
         const login = (user && user.login) ? String(user.login) : '';
         if (login) {
-          return { owner: login, repo: 'daily-paper-reader' };
+          return { owner: login, repo: 'essay-agent' };
         }
       }
     } catch {
@@ -533,7 +533,7 @@ window.DPRWorkflowRunner = (function () {
         return `
           <div class="dpr-wf-recent-block">
             <div class="dpr-wf-recent-block-title">${escapeHtml(wf.name)}</div>
-            <div style="color:#c90;">当前仓库不是 GitHub Fork，已禁用上游同步。</div>
+            <div style="color:#c90;">当前仓库不是 GitHub Fork，已禁用技术基座同步。</div>
           </div>
         `;
       }
@@ -736,10 +736,9 @@ window.DPRWorkflowRunner = (function () {
       return;
     }
     if (wf.key === 'sync' && repoContext.isFork === false) {
-      setStatus('当前仓库不是 GitHub Fork，无法使用上游同步。', '#c00');
+      setStatus('当前仓库不是 GitHub Fork，无法使用技术基座同步。', '#c00');
       runsEl.innerHTML =
-        '<div style="color:#c00;">当前仓库不是 Fork 仓库，Upstream Sync 不会运行。</div>' +
-        `<div style="margin-top:8px;"><a class="arxiv-tool-btn" style="padding:6px 10px; text-decoration:none;" target="_blank" href="https://github.com/${owner}/${repo}/fork">前往 Fork 当前仓库</a></div>`;
+        '<div style="color:#c00;">当前仓库不是 Fork 仓库，技术基座同步不会运行。</div>';
       return;
     }
 

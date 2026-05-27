@@ -1,33 +1,21 @@
-<div class="dpr-home-notice-card">
-  <h3 class="dpr-home-notice-title">🚀 Start Here</h3>
-  <ul class="dpr-home-notice-list">
-    <li><a href="#/tutorial/README">使用教程</a></li>
-  </ul>
-</div>
+# ScholarLens
 
-## 每次日报
-- 最新运行日期：2026-03-06
-- 运行时间：2026-03-06 19:11:19 UTC
-- 运行状态：成功
-- 本次总论文数：0
-- 精读区：0
-- 速读区：0
+ScholarLens is the web workspace for the `essay-agent` literature pipeline. It focuses on architecture, sports space, VR, spatial behavior, movement traces, healing space, and the other research directions defined in `config.essay-agent.yaml`.
 
-### 今日简报（AI）
-> 今日无新推荐，系统未产出可展示论文。
-- 详情：[/202603/06/README](/202603/06/README)
+## Start Here
 
-### 精读区论文标签
-- 本次无精读推荐。
+- Open the paper workspace: [essay-agent Workbench](essay-agent-workbench)
+- Review the fusion design: [ScholarLens fusion notes](essay-agent-fusion)
+- Configure research domains in `config.essay-agent.yaml`
+- Configure Supabase and GitHub Actions secrets before scheduled runs
 
-### 速读区论文标签
-- 本次无速读推荐。
+## Core Capabilities
 
+- Multi-source monitoring from arXiv, OpenAlex, Crossref, Semantic Scholar, Europe PMC, and optional CORE.
+- Chinese structured analysis and daily paper reports.
+- Domain relevance scoring from `essay-agent` keywords, ISSN targets, and source metadata.
+- Semantic recall, intelligent reranking, and AI reading for workspace discovery.
+- Optional knowledge-base sync and share snapshots when the corresponding secrets are configured.
+- Email digest and daily JSON/CSV backups.
 
-<div class="dpr-home-promo-card">
-  <h3 class="dpr-home-promo-title">💬 社区与支持</h3>
-  <ul class="dpr-home-promo-list">
-    <li>欢迎 Star / Fork / Issue / PR</li>
-    <li>QQ群：583867967（欢迎交流，已有：1151人）</li>
-  </ul>
-</div>
+The product domain is decided by `essay-agent`; the web base only provides reading, retrieval, automation, and storage infrastructure.
