@@ -6,6 +6,7 @@ from src.essay_agent_core import (
     build_messages_url,
     extract_messages_text,
     extract_responses_text,
+    fetch_arxiv_results,
     fetch_openalex_results,
     normalize_llm_api_mode,
 )
@@ -71,6 +72,21 @@ def test_fetch_openalex_results_tolerates_null_title(monkeypatch):
     assert rows[0]["title"] == ""
     assert rows[0]["abstract"] == ""
     assert rows[0]["url"] == "https://openalex.org/W1"
+
+
+def test_fetch_arxiv_results_returns_empty_after_rate_limit(monkeypatch):
+    class _RateLimitedClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        def results(self, _search):
+            raise RuntimeError("HTTP 429 too many requests")
+
+    monkeypatch.setattr(essay_agent_core.arxiv, "Client", _RateLimitedClient)
+    monkeypatch.setattr(essay_agent_core.time, "sleep", lambda *_args, **_kwargs: None)
+    monkeypatch.setenv("ARXIV_RETRIES", "1")
+
+    assert fetch_arxiv_results("cat:cs.HC", 5) == []
 
 
 def test_llm_api_mode_aliases():

@@ -47,6 +47,18 @@ def parse_bool(value: str | None, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+def parse_int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except Exception:
+        return default
+
+
+def is_rate_limit_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return "429" in text or "rate limit" in text or "too many requests" in text or "503" in text
+
+
 class EssayAgentLLMClient:
     """Small adapter for OpenAI Responses, OpenAI-compatible Chat, and Messages APIs."""
 
@@ -823,15 +835,24 @@ def normalize_date(value: str) -> str:
 
 
 def fetch_arxiv_results(query_text: str, max_results: int, retries: int = 3) -> list[dict]:
+    retries = max(parse_int_env("ARXIV_RETRIES", retries), 1)
+    page_size = max(min(parse_int_env("ARXIV_PAGE_SIZE", 10), max(max_results, 1), 100), 1)
+    delay_seconds = max(parse_int_env("ARXIV_DELAY_SECONDS", 8), 0)
+    backoff_base = max(parse_int_env("ARXIV_BACKOFF_BASE_SECONDS", 20), 1)
     for attempt in range(1, retries + 1):
         try:
             items = []
+            client = arxiv.Client(
+                page_size=page_size,
+                delay_seconds=delay_seconds,
+                num_retries=0,
+            )
             search = arxiv.Search(
                 query=query_text,
                 max_results=max_results,
                 sort_by=arxiv.SortCriterion.SubmittedDate,
             )
-            for result in search.results():
+            for result in client.results(search):
                 published = result.published
                 if published.tzinfo is None:
                     published = published.replace(tzinfo=timezone.utc)
@@ -850,10 +871,13 @@ def fetch_arxiv_results(query_text: str, max_results: int, retries: int = 3) -> 
                 )
             return items
         except Exception as e:
-            if attempt < retries and "503" in str(e):
-                wait = 5 * (2 ** (attempt - 1))
-                logger.warning("arXiv 503 限流，%d秒后重试 (%d/%d)", wait, attempt, retries)
+            if is_rate_limit_error(e) and attempt < retries:
+                wait = backoff_base * (2 ** (attempt - 1))
+                logger.warning("arXiv 限流/临时不可用，%d秒后重试 (%d/%d): %s", wait, attempt, retries, e)
                 time.sleep(wait)
+            elif is_rate_limit_error(e):
+                logger.warning("arXiv 限流仍未恢复，跳过本次 query: %s", e)
+                return []
             else:
                 raise
     return []
@@ -1447,7 +1471,9 @@ def main():
             stats["source_details"][source_key] = {"fetched": len(source_items), "error": ""}
 
             # Rate limiting between API calls
-            if source_name == "semantic_scholar":
+            if source_name == "arxiv":
+                time.sleep(max(parse_int_env("ARXIV_QUERY_DELAY_SECONDS", 8), 0))
+            elif source_name == "semantic_scholar":
                 time.sleep(3)
             elif source_name != "arxiv":
                 time.sleep(1.5)

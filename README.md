@@ -48,6 +48,7 @@ Required secrets usually include:
 - `OPENAI_BASE_URL` and `OPENAI_MODEL` when using a custom model endpoint.
 - `LLM_API_MODE` is optional: `auto` prefers OpenAI `/v1/responses` for new OpenAI models, keeps `/v1/chat/completions` for compatible third-party endpoints, and can be set to `messages` for `/v1/messages` providers.
 - `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, and `ANTHROPIC_MODEL` are optional when `LLM_API_MODE=messages`.
+- `ARXIV_RETRIES`, `ARXIV_PAGE_SIZE`, `ARXIV_DELAY_SECONDS`, `ARXIV_BACKOFF_BASE_SECONDS`, and `ARXIV_QUERY_DELAY_SECONDS` can be tuned when GitHub Actions hits arXiv HTTP 429 limits.
 - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and frontend anon key in config.
 - SMTP/Brevo secrets for email reports.
 - Optional Zotero/Gist tokens when enabling knowledge-base sync or share snapshots.
