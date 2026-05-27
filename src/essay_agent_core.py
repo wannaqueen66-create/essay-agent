@@ -128,6 +128,20 @@ def truncate_text(text: str, max_chars: int) -> str:
     return text[:max_chars]
 
 
+def safe_text(value) -> str:
+    return str(value or "").strip()
+
+
+def first_text(value) -> str:
+    if isinstance(value, list):
+        for item in value:
+            text = safe_text(item)
+            if text:
+                return text
+        return ""
+    return safe_text(value)
+
+
 def contains_excluded_keyword(text: str, exclude_keywords: list[str]) -> bool:
     text_lower = text.lower()
     return any(k.lower() in text_lower for k in exclude_keywords)
@@ -715,27 +729,34 @@ def fetch_openalex_results(query_text: str, max_results: int) -> list[dict]:
         for work in data.get("results", []):
             abstract = ""
             inverted = work.get("abstract_inverted_index")
-            if inverted:
+            if isinstance(inverted, dict):
                 terms = []
                 for word, positions in inverted.items():
-                    for p in positions:
+                    for p in positions or []:
                         terms.append((p, word))
                 abstract = " ".join(word for _, word in sorted(terms))
             if not abstract:
-                abstract = work.get("title", "")
+                abstract = safe_text(work.get("title"))
+            title = safe_text(work.get("title"))
+            primary_location = work.get("primary_location") if isinstance(work.get("primary_location"), dict) else {}
+            openalex_id = safe_text(work.get("id")).split("/")[-1]
             items.append(
                 {
                     "source": "openalex",
                     "doi": normalize_doi(work.get("doi") or ""),
-                    "title": work.get("title", "").strip(),
-                    "abstract": abstract.strip(),
-                    "url": work.get("primary_location", {}).get("landing_page_url")
+                    "title": title,
+                    "abstract": safe_text(abstract or title),
+                    "url": safe_text(primary_location.get("landing_page_url"))
                     or work.get("doi")
-                    or f"https://openalex.org/{work.get('id','').split('/')[-1]}",
+                    or (f"https://openalex.org/{openalex_id}" if openalex_id else ""),
                     "published": datetime.fromisoformat((work.get("publication_date") or "1970-01-01") + "T00:00:00+00:00"),
-                    "authors": [a.get("author", {}).get("display_name", "") for a in work.get("authorships", []) if a.get("author", {}).get("display_name")],
-                    "primary_category": (work.get("primary_topic") or {}).get("display_name", ""),
-                    "categories": [c.get("display_name", "") for c in work.get("concepts", [])[:8] if c.get("display_name")],
+                    "authors": [
+                        safe_text((a.get("author") or {}).get("display_name"))
+                        for a in (work.get("authorships") or [])
+                        if isinstance(a, dict) and safe_text((a.get("author") or {}).get("display_name"))
+                    ],
+                    "primary_category": safe_text((work.get("primary_topic") or {}).get("display_name")),
+                    "categories": [safe_text(c.get("display_name")) for c in (work.get("concepts") or [])[:8] if isinstance(c, dict) and safe_text(c.get("display_name"))],
                 }
             )
     except Exception:
@@ -753,7 +774,7 @@ def fetch_crossref_results(query_text: str, max_results: int) -> list[dict]:
         for work in data.get("message", {}).get("items", []):
             abstract = work.get("abstract", "") or ""
             abstract = abstract.replace("<jats:p>", "").replace("</jats:p>", " ").strip()
-            title = (work.get("title") or [""])[0]
+            title = first_text(work.get("title"))
             published_parts = (((work.get("published-print") or work.get("published-online") or {}).get("date-parts") or [[1970, 1, 1]])[0])
             while len(published_parts) < 3:
                 published_parts.append(1)
@@ -761,13 +782,13 @@ def fetch_crossref_results(query_text: str, max_results: int) -> list[dict]:
                 {
                     "source": "crossref",
                     "doi": normalize_doi(work.get("DOI") or work.get("doi") or ""),
-                    "title": title.strip(),
-                    "abstract": (abstract or title).strip(),
-                    "url": work.get("URL", ""),
+                    "title": safe_text(title),
+                    "abstract": safe_text(abstract or title),
+                    "url": safe_text(work.get("URL")),
                     "published": datetime(published_parts[0], published_parts[1], published_parts[2], tzinfo=timezone.utc),
-                    "authors": [" ".join(filter(None, [a.get("given", ""), a.get("family", "")])).strip() for a in work.get("author", []) if (a.get("given") or a.get("family"))],
-                    "primary_category": (work.get("subject") or [""])[0],
-                    "categories": work.get("subject", [])[:8],
+                    "authors": [" ".join(filter(None, [safe_text(a.get("given")), safe_text(a.get("family"))])).strip() for a in (work.get("author") or []) if isinstance(a, dict) and (safe_text(a.get("given")) or safe_text(a.get("family")))],
+                    "primary_category": first_text(work.get("subject")),
+                    "categories": [safe_text(x) for x in (work.get("subject") or [])[:8] if safe_text(x)],
                 }
             )
     except Exception:
@@ -791,17 +812,18 @@ def fetch_semantic_scholar_results(query_text: str, max_results: int) -> list[di
             fields_of_study = paper.get("fieldsOfStudy") or []
             if not isinstance(fields_of_study, list):
                 fields_of_study = []
+            title = safe_text(paper.get("title"))
             items.append(
                 {
                     "source": "semantic_scholar",
                     "doi": normalize_doi(paper.get("externalIds", {}).get("DOI", "") if isinstance(paper.get("externalIds"), dict) else ""),
-                    "title": (paper.get("title") or "").strip(),
-                    "abstract": (paper.get("abstract") or paper.get("title") or "").strip(),
-                    "url": paper.get("url") or f"https://www.semanticscholar.org/paper/{paper.get('paperId','')}",
+                    "title": title,
+                    "abstract": safe_text(paper.get("abstract") or title),
+                    "url": safe_text(paper.get("url")) or f"https://www.semanticscholar.org/paper/{safe_text(paper.get('paperId'))}",
                     "published": datetime.fromisoformat(normalize_date(date_str) + "T00:00:00+00:00"),
-                    "authors": [a.get("name", "") for a in paper.get("authors", []) if a.get("name")],
-                    "primary_category": fields_of_study[0] if fields_of_study else "",
-                    "categories": fields_of_study[:8],
+                    "authors": [safe_text(a.get("name")) for a in (paper.get("authors") or []) if isinstance(a, dict) and safe_text(a.get("name"))],
+                    "primary_category": safe_text(fields_of_study[0]) if fields_of_study else "",
+                    "categories": [safe_text(x) for x in fields_of_study[:8] if safe_text(x)],
                 }
             )
     except Exception:
@@ -823,8 +845,8 @@ def fetch_europepmc_results(query_text: str, max_results: int) -> list[dict]:
         }
         data = requests.get(url, params=params, headers=REQUEST_HEADERS, timeout=30).json()
         for work in data.get("resultList", {}).get("result", []):
-            abstract = (work.get("abstractText") or work.get("title") or "").strip()
-            title = (work.get("title") or "").strip()
+            title = safe_text(work.get("title"))
+            abstract = safe_text(work.get("abstractText") or title)
             date_str = work.get("firstPublicationDate") or "1970-01-01"
             doi = normalize_doi(work.get("doi") or "")
             paper_url = f"https://europepmc.org/article/{work.get('source', 'MED')}/{work.get('id', '')}"
@@ -840,8 +862,8 @@ def fetch_europepmc_results(query_text: str, max_results: int) -> list[dict]:
                     "url": paper_url,
                     "published": datetime.fromisoformat(date_str + "T00:00:00+00:00"),
                     "authors": [a.strip() for a in authors_str.split(",") if a.strip()][:20],
-                    "primary_category": work.get("journalTitle") or "",
-                    "categories": [kw.strip() for kw in (work.get("keywordList", {}).get("keyword") or [])[:8]],
+                    "primary_category": safe_text(work.get("journalTitle")),
+                    "categories": [safe_text(kw) for kw in (work.get("keywordList", {}).get("keyword") or [])[:8] if safe_text(kw)],
                 }
             )
     except Exception:
@@ -861,8 +883,8 @@ def fetch_core_results(query_text: str, max_results: int) -> list[dict]:
         params = {"q": query_text, "limit": min(max_results, 20)}
         data = requests.get(url, params=params, headers=headers, timeout=30).json()
         for work in data.get("results", []):
-            abstract = (work.get("abstract") or work.get("title") or "").strip()
-            title = (work.get("title") or "").strip()
+            title = safe_text(work.get("title"))
+            abstract = safe_text(work.get("abstract") or title)
             date_str = (work.get("publishedDate") or work.get("yearPublished") or "1970") [:10]
             if len(date_str) == 4:
                 date_str += "-01-01"
@@ -881,7 +903,7 @@ def fetch_core_results(query_text: str, max_results: int) -> list[dict]:
                     "abstract": abstract,
                     "url": paper_url,
                     "published": datetime.fromisoformat(date_str + "T00:00:00+00:00"),
-                    "authors": [a.get("name", "") if isinstance(a, dict) else str(a) for a in authors_list][:20],
+                    "authors": [safe_text(a.get("name")) if isinstance(a, dict) else safe_text(a) for a in authors_list][:20],
                     "primary_category": "",
                     "categories": [],
                 }
