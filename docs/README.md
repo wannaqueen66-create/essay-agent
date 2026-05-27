@@ -1,21 +1,45 @@
-# ScholarLens
+<div class="dpr-home-notice-card">
+  <h3 class="dpr-home-notice-title">Start Here</h3>
+  <ul class="dpr-home-notice-list" data-i18n-zh>
+    <li><a href="#/essay-agent-workbench">打开 ScholarLens 文献工作台</a></li>
+    <li><a href="#/essay-agent-fusion">查看 ScholarLens 融合说明</a></li>
+  </ul>
+  <ul class="dpr-home-notice-list" data-i18n-en>
+    <li><a href="#/essay-agent-workbench">Open the ScholarLens paper workbench</a></li>
+    <li><a href="#/essay-agent-fusion">Read the ScholarLens fusion notes</a></li>
+  </ul>
+</div>
 
-ScholarLens is the web workspace for the `essay-agent` literature pipeline. It focuses on architecture, sports space, VR, spatial behavior, movement traces, healing space, and the other research directions defined in `config.essay-agent.yaml`.
+## 每次日报
+- 最新运行日期：2026-05-27
+- 运行时间：2026-05-27 20:55:16 UTC
+- 运行状态：成功
+- 本次总论文数：0
+- 精读区：0
+- 速读区：0
 
-## Start Here
+### 今日简报（AI）
+> 今日无新推荐，系统未产出可展示论文。
+- 详情：[/202605/27/README](/202605/27/README)
 
-- Open the paper workspace: [essay-agent Workbench](essay-agent-workbench)
-- Review the fusion design: [ScholarLens fusion notes](essay-agent-fusion)
-- Configure research domains in `config.essay-agent.yaml`
-- Configure Supabase and GitHub Actions secrets before scheduled runs
+### 精读区论文标签
+- 本次无精读推荐。
 
-## Core Capabilities
+### 速读区论文标签
+- 本次无速读推荐。
 
-- Multi-source monitoring from arXiv, OpenAlex, Crossref, Semantic Scholar, Europe PMC, and optional CORE.
-- Chinese structured analysis and daily paper reports.
-- Domain relevance scoring from `essay-agent` keywords, ISSN targets, and source metadata.
-- Semantic recall, intelligent reranking, and AI reading for workspace discovery.
-- Optional knowledge-base sync and share snapshots when the corresponding secrets are configured.
-- Email digest and daily JSON/CSV backups.
 
-The product domain is decided by `essay-agent`; the web base only provides reading, retrieval, automation, and storage infrastructure.
+<div class="dpr-home-promo-card">
+  <h3 class="dpr-home-promo-title">
+    <span data-i18n-zh>ScholarLens Workspace</span>
+    <span data-i18n-en>ScholarLens Workspace</span>
+  </h3>
+  <ul class="dpr-home-promo-list" data-i18n-zh>
+    <li>多源监测、中文结构化分析、语义召回、智能重排和 AI 精读集中在一个阅读工作台。</li>
+    <li>知识库同步和分享快照为可选扩展；未配置时不影响抓取、日报、网页和邮件主流程。</li>
+  </ul>
+  <ul class="dpr-home-promo-list" data-i18n-en>
+    <li>Multi-source monitoring, Chinese structured analysis, semantic recall, intelligent reranking, and AI reading in one workspace.</li>
+    <li>Knowledge sync and share snapshots are optional extensions; if not configured, crawling, reports, web pages, and email digests still work.</li>
+  </ul>
+</div>
