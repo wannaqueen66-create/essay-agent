@@ -24,6 +24,7 @@ logger = logging.getLogger("essay_agent")
 
 DB_PATH = "papers.db"
 REQUEST_HEADERS = {"User-Agent": "essay-agent/1.0"}
+SUPPORTED_LLM_API_MODES = {"auto", "responses", "chat_completions", "messages"}
 
 
 def normalize_doi(value: str | None) -> str:
@@ -46,16 +47,153 @@ def parse_bool(value: str | None, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
-def load_env() -> tuple[OpenAI, dict]:
-    load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("没有读取到 OPENAI_API_KEY,请检查 .env 文件。")
+class EssayAgentLLMClient:
+    """Small adapter for OpenAI Responses, OpenAI-compatible Chat, and Messages APIs."""
 
-    base_url = os.getenv("OPENAI_BASE_URL", "").strip()
+    def __init__(self, api_key: str, model: str, base_url: str = "", api_mode: str = "auto") -> None:
+        self.api_key = api_key
+        self.model = model
+        self.base_url = (base_url or "").strip().rstrip("/")
+        self.api_mode = normalize_llm_api_mode(api_mode)
+        client_kwargs = {"api_key": api_key}
+        if self.base_url:
+            client_kwargs["base_url"] = self.base_url
+        self.openai_client = OpenAI(**client_kwargs)
+
+    def complete_text(self, prompt: str) -> str:
+        errors = []
+        for mode in self._candidate_modes():
+            try:
+                if mode == "responses":
+                    return self._responses_text(prompt)
+                if mode == "messages":
+                    return self._messages_text(prompt)
+                return self._chat_completions_text(prompt)
+            except Exception as exc:
+                errors.append(f"{mode}: {exc}")
+                if self.api_mode != "auto":
+                    raise
+                logger.warning("LLM %s endpoint failed, trying fallback: %s", mode, exc)
+        raise RuntimeError("; ".join(errors) if errors else "no LLM endpoint attempted")
+
+    def _candidate_modes(self) -> list[str]:
+        if self.api_mode != "auto":
+            return [self.api_mode]
+        if self._looks_like_messages_provider():
+            return ["messages", "chat_completions"]
+        if self._looks_like_openai_provider():
+            return ["responses", "chat_completions"]
+        return ["chat_completions", "responses"]
+
+    def _looks_like_openai_provider(self) -> bool:
+        if not self.base_url:
+            return True
+        return "api.openai.com" in self.base_url.lower()
+
+    def _looks_like_messages_provider(self) -> bool:
+        text = f"{self.base_url} {self.model}".lower()
+        return "anthropic" in text or "claude" in text
+
+    def _chat_completions_text(self, prompt: str) -> str:
+        response = self.openai_client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return (response.choices[0].message.content or "").strip()
+
+    def _responses_text(self, prompt: str) -> str:
+        response = self.openai_client.responses.create(
+            model=self.model,
+            input=prompt,
+        )
+        text = getattr(response, "output_text", None)
+        if text:
+            return str(text).strip()
+        return extract_responses_text(response).strip()
+
+    def _messages_text(self, prompt: str) -> str:
+        base = self.base_url or "https://api.anthropic.com"
+        url = build_messages_url(base)
+        headers = {
+            "content-type": "application/json",
+            "anthropic-version": os.getenv("ANTHROPIC_VERSION", "2023-06-01"),
+        }
+        if "anthropic" in url.lower():
+            headers["x-api-key"] = self.api_key
+        else:
+            headers["authorization"] = f"Bearer {self.api_key}"
+        payload = {
+            "model": self.model,
+            "max_tokens": int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "2048")),
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        response = requests.post(url, headers=headers, json=payload, timeout=120)
+        if response.status_code >= 400:
+            raise RuntimeError(f"messages HTTP {response.status_code}: {response.text[:300]}")
+        return extract_messages_text(response.json()).strip()
+
+
+def normalize_llm_api_mode(value: str | None) -> str:
+    mode = (value or "auto").strip().lower().replace("-", "_")
+    aliases = {
+        "chat": "chat_completions",
+        "chat_completions": "chat_completions",
+        "chat_completions_api": "chat_completions",
+        "responses_api": "responses",
+        "messages_api": "messages",
+        "anthropic_messages": "messages",
+    }
+    mode = aliases.get(mode, mode)
+    if mode not in SUPPORTED_LLM_API_MODES:
+        raise ValueError(f"LLM_API_MODE must be one of {sorted(SUPPORTED_LLM_API_MODES)}, got {value!r}")
+    return mode
+
+
+def build_messages_url(base_url: str) -> str:
+    raw = (base_url or "https://api.anthropic.com").strip().rstrip("/")
+    lowered = raw.lower()
+    if lowered.endswith("/v1/messages") or lowered.endswith("/messages"):
+        return raw
+    if lowered.endswith("/v1"):
+        return f"{raw}/messages"
+    return f"{raw}/v1/messages"
+
+
+def extract_responses_text(response) -> str:
+    data = response.model_dump() if hasattr(response, "model_dump") else response
+    if isinstance(data, dict):
+        chunks = []
+        for item in data.get("output") or []:
+            for part in item.get("content") or []:
+                text = part.get("text")
+                if text:
+                    chunks.append(str(text))
+        return "\n".join(chunks)
+    return ""
+
+
+def extract_messages_text(data: dict) -> str:
+    chunks = []
+    for item in data.get("content") or []:
+        if isinstance(item, dict):
+            text = item.get("text")
+            if text:
+                chunks.append(str(text))
+    return "\n".join(chunks)
+
+
+def load_env() -> tuple[EssayAgentLLMClient, dict]:
+    load_dotenv()
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("没有读取到 OPENAI_API_KEY 或 ANTHROPIC_API_KEY,请检查 .env 文件。")
+
+    base_url = (os.getenv("OPENAI_BASE_URL") or os.getenv("ANTHROPIC_BASE_URL") or "").strip()
+    model_name = os.getenv("OPENAI_MODEL") or os.getenv("ANTHROPIC_MODEL") or "gpt-4.1-mini"
 
     runtime = {
-        "openai_model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+        "openai_model": model_name,
+        "llm_api_mode": normalize_llm_api_mode(os.getenv("LLM_API_MODE", "auto")),
         "days_back": int(os.getenv("DAYS_BACK", "2")),
         "max_results_per_query": int(os.getenv("MAX_RESULTS_PER_QUERY", "30")),
         "min_relevance_score": int(os.getenv("MIN_RELEVANCE_SCORE", "60")),
@@ -76,11 +214,13 @@ def load_env() -> tuple[OpenAI, dict]:
         "empty_report_email": parse_bool(os.getenv("EMPTY_REPORT_EMAIL"), False),
     }
 
-    client_kwargs = {"api_key": api_key}
-    if base_url:
-        client_kwargs["base_url"] = base_url
-
-    return OpenAI(**client_kwargs), runtime
+    client = EssayAgentLLMClient(
+        api_key=api_key,
+        model=runtime["openai_model"],
+        base_url=base_url,
+        api_mode=runtime["llm_api_mode"],
+    )
+    return client, runtime
 
 
 def ensure_output_dir(path: str) -> None:
@@ -578,7 +718,7 @@ def parse_analysis_text(text: str) -> dict:
     return result
 
 
-def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3) -> dict:
+def analyze_paper(client: EssayAgentLLMClient, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3) -> dict:
     relation_key = "与建筑/体育空间/疗愈环境研究相关性"
     legacy_relation_key = "与建筑/体育空间研究相关性"
     prompt = f"""
@@ -635,11 +775,14 @@ JSON 必须包含以下字段：
     last_error = None
     for attempt in range(1, retries + 1):
         try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            text = response.choices[0].message.content.strip()
+            if isinstance(client, EssayAgentLLMClient):
+                text = client.complete_text(prompt)
+            else:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                text = response.choices[0].message.content.strip()
             result = parse_analysis_text(text)
             result["分析状态"] = "success"
             return result

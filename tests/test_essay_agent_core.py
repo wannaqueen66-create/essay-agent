@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 from src import essay_agent_core
-from src.essay_agent_core import analyze_paper, fetch_openalex_results
+from src.essay_agent_core import (
+    analyze_paper,
+    build_messages_url,
+    extract_messages_text,
+    extract_responses_text,
+    fetch_openalex_results,
+    normalize_llm_api_mode,
+)
 
 
 class _FailingChatCompletions:
@@ -64,3 +71,33 @@ def test_fetch_openalex_results_tolerates_null_title(monkeypatch):
     assert rows[0]["title"] == ""
     assert rows[0]["abstract"] == ""
     assert rows[0]["url"] == "https://openalex.org/W1"
+
+
+def test_llm_api_mode_aliases():
+    assert normalize_llm_api_mode("responses") == "responses"
+    assert normalize_llm_api_mode("messages_api") == "messages"
+    assert normalize_llm_api_mode("chat") == "chat_completions"
+    assert normalize_llm_api_mode(None) == "auto"
+
+
+def test_build_messages_url_accepts_base_variants():
+    assert build_messages_url("https://api.anthropic.com") == "https://api.anthropic.com/v1/messages"
+    assert build_messages_url("https://api.anthropic.com/v1") == "https://api.anthropic.com/v1/messages"
+    assert build_messages_url("https://api.anthropic.com/v1/messages") == "https://api.anthropic.com/v1/messages"
+
+
+def test_extract_responses_text_from_output_shape():
+    class _Response:
+        def model_dump(self):
+            return {
+                "output": [
+                    {"content": [{"type": "output_text", "text": "hello"}, {"type": "output_text", "text": "world"}]}
+                ]
+            }
+
+    assert extract_responses_text(_Response()) == "hello\nworld"
+
+
+def test_extract_messages_text_from_anthropic_shape():
+    payload = {"content": [{"type": "text", "text": "hello"}, {"type": "text", "text": "world"}]}
+    assert extract_messages_text(payload) == "hello\nworld"
