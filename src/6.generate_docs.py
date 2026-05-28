@@ -1186,22 +1186,38 @@ def extract_sidebar_tags(paper: Dict[str, Any], max_tags: int = 6) -> List[Tuple
     return score_tag + tags
 
 
-def ensure_text_content(pdf_url: str, txt_path: str) -> str:
+def ensure_text_content(pdf_url: str, txt_path: str, fallback_text: str = "") -> str:
     if os.path.exists(txt_path):
         with open(txt_path, "r", encoding="utf-8") as f:
             return f.read()
     text_content = fetch_paper_markdown_via_jina(pdf_url)
     if text_content is None and pdf_url:
-        resp = requests.get(pdf_url, timeout=60)
-        resp.raise_for_status()
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True) as tmp_pdf:
-            tmp_pdf.write(resp.content)
-            tmp_pdf.flush()
-            text_content = extract_pdf_text(tmp_pdf.name)
+        try:
+            resp = requests.get(pdf_url, timeout=60)
+            resp.raise_for_status()
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True) as tmp_pdf:
+                tmp_pdf.write(resp.content)
+                tmp_pdf.flush()
+                text_content = extract_pdf_text(tmp_pdf.name)
+        except Exception as e:
+            log(f"[WARN] 全文抽取失败，使用摘要/结构化分析兜底：{pdf_url}: {e}")
+            text_content = fallback_text
+    if not text_content and fallback_text:
+        text_content = fallback_text
     os.makedirs(os.path.dirname(txt_path), exist_ok=True)
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write(text_content or "")
     return text_content or ""
+
+
+def write_fallback_text_content(txt_path: str, fallback_text: str) -> str:
+    if os.path.exists(txt_path):
+        with open(txt_path, "r", encoding="utf-8") as f:
+            return f.read()
+    os.makedirs(os.path.dirname(txt_path), exist_ok=True)
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(fallback_text or "")
+    return fallback_text or ""
 
 
 def yaml_escape_value(s: str) -> str:
@@ -1210,6 +1226,64 @@ def yaml_escape_value(s: str) -> str:
     if any(c in s for c in [':', '#', '"', "'", '\n', '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '@', '`']):
         return '"' + s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n') + '"'
     return s
+
+
+def resolve_paper_content_url(paper: Dict[str, Any]) -> str:
+    url = str(paper.get("pdf_url") or paper.get("link") or "").strip()
+    source_key = str(paper.get("source") or "").strip().lower()
+    if source_key == "arxiv" and url:
+        if "/abs/" in url:
+            return url.replace("/abs/", "/pdf/").replace(".pdf", "")
+        if "/pdf/" in url:
+            return url.replace(".pdf", "")
+    return url
+
+
+def build_paper_text_fallback(paper: Dict[str, Any]) -> str:
+    analysis = paper.get("_essay_agent_analysis")
+    if not isinstance(analysis, dict):
+        analysis = {}
+    lines = [
+        f"Title: {str(paper.get('title') or '').strip()}",
+        "",
+        "Abstract:",
+        str(paper.get("abstract") or "").strip(),
+    ]
+    summary = str(paper.get("chinese_summary") or analysis.get("中文摘要") or "").strip()
+    if summary:
+        lines.extend(["", "中文摘要:", summary])
+    field_labels = [
+        "研究主题",
+        "空间/场景类型",
+        "研究场景",
+        "自变量",
+        "因变量",
+        "行为指标",
+        "生理/感知指标",
+        "研究方法",
+        "数据/样本",
+        "主要结论",
+        "与建筑/体育空间/疗愈环境研究相关性",
+        "相关性分数",
+        "可借鉴启发",
+    ]
+    structured = []
+    for label in field_labels:
+        value = str(
+            analysis.get(label)
+            or paper.get(label)
+            or (
+                paper.get("_essay_agent_relation")
+                if label == "与建筑/体育空间/疗愈环境研究相关性"
+                else ""
+            )
+            or (paper.get("_essay_agent_inspiration") if label == "可借鉴启发" else "")
+        ).strip()
+        if value:
+            structured.append(f"{label}: {value}")
+    if structured:
+        lines.extend(["", "essay-agent 结构化分析:", *structured])
+    return "\n".join(lines).strip() + "\n"
 
 
 def maybe_generate_paper_figures(
@@ -1295,7 +1369,7 @@ def build_markdown_content(
     published = str(paper.get("published") or "").strip()
     if published:
         published = published[:10]
-    pdf_url = str(paper.get("link") or paper.get("pdf_url") or "").strip()
+    pdf_url = resolve_paper_content_url(paper)
     score = paper.get("llm_score")
     evidence = str(paper.get("canonical_evidence") or "").strip()
     tldr = (
@@ -1378,6 +1452,12 @@ def build_markdown_content(
     lines.append("---")
     lines.append("")
 
+    analysis = paper.get("_essay_agent_analysis")
+    if not isinstance(analysis, dict):
+        analysis = {}
+    if not zh_abstract:
+        zh_abstract = str(paper.get("chinese_summary") or analysis.get("中文摘要") or "").strip()
+
     # 正文部分：摘要
     if zh_abstract:
         lines.append("## 摘要")
@@ -1386,6 +1466,42 @@ def build_markdown_content(
 
     lines.append("## Abstract")
     lines.append(abstract_en)
+
+    field_labels = [
+        "研究主题",
+        "空间/场景类型",
+        "研究场景",
+        "自变量",
+        "因变量",
+        "行为指标",
+        "生理/感知指标",
+        "研究方法",
+        "数据/样本",
+        "主要结论",
+        "与建筑/体育空间/疗愈环境研究相关性",
+        "相关性分数",
+        "可借鉴启发",
+    ]
+    structured_lines = []
+    for label in field_labels:
+        value = str(
+            analysis.get(label)
+            or paper.get(label)
+            or (
+                paper.get("_essay_agent_relation")
+                if label == "与建筑/体育空间/疗愈环境研究相关性"
+                else ""
+            )
+            or (paper.get("_essay_agent_inspiration") if label == "可借鉴启发" else "")
+        ).strip()
+        if value:
+            structured_lines.append(f"- {label}: {value}")
+    if structured_lines:
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append("## essay-agent 结构化分析")
+        lines.extend(structured_lines)
 
     return "\n".join(lines)
 
@@ -1426,18 +1542,14 @@ def process_paper(
     arxiv_id = str(paper.get("id") or paper.get("paper_id") or "").strip()
     md_path, txt_path, paper_id = prepare_paper_paths(docs_dir, date_str, title, arxiv_id)
     abstract_en = (paper.get("abstract") or "").strip()
-    pdf_url = str(paper.get("link") or paper.get("pdf_url") or "").strip()
+    pdf_url = resolve_paper_content_url(paper)
+    text_fallback = build_paper_text_fallback(paper)
 
     glance = ""
 
     if os.path.exists(md_path):
-        # 即使是 glance-only，也要确保生成/补齐 .txt（用于前端聊天上下文等）
-        if glance_only and pdf_url:
-            try:
-                ensure_text_content(pdf_url, txt_path)
-            except Exception:
-                # 不阻塞文档生成流程：txt 拉取失败时继续（避免因为网络/源站问题导致整批中断）
-                pass
+        if glance_only:
+            write_fallback_text_content(txt_path, text_fallback)
 
         try:
             with open(md_path, "r", encoding="utf-8") as f:
@@ -1448,7 +1560,7 @@ def process_paper(
         existing_meta = _parse_front_matter(existing)
         has_figures_json = bool(str(existing_meta.get("figures_json") or "").strip()) if existing_meta else False
         has_tables_json = bool(str(existing_meta.get("tables_json") or "").strip()) if existing_meta else False
-        if not has_figures_json or not has_tables_json:
+        if not glance_only and (not has_figures_json or not has_tables_json):
             figures, tables = maybe_generate_paper_media(
                 paper,
                 docs_dir=docs_dir,
@@ -1601,8 +1713,8 @@ def process_paper(
                 return paper_id, title
 
             # 生成详细总结
-            pdf_url = str(paper.get("link") or paper.get("pdf_url") or "").strip()
-            ensure_text_content(pdf_url, txt_path)
+            pdf_url = resolve_paper_content_url(paper)
+            ensure_text_content(pdf_url, txt_path, text_fallback)
             summary = generate_deep_summary(md_path, txt_path)
             if summary:
                 upsert_auto_block(md_path, "论文详细总结（自动生成）", summary)
@@ -1613,22 +1725,7 @@ def process_paper(
 
     # 新文件：如果只需要速览，则不拉取 PDF/Jina 文本，直接用元数据生成页面
     if glance_only:
-        # 速览模式也需要生成/补齐全文 txt（优先 jina，失败则 pymupdf 兜底）
-        if pdf_url:
-            try:
-                ensure_text_content(pdf_url, txt_path)
-            except Exception:
-                pass
-        figures, tables = maybe_generate_paper_media(
-            paper,
-            docs_dir=docs_dir,
-            paper_id=paper_id,
-            pdf_url=pdf_url,
-        )
-        if figures:
-            paper["_figure_assets"] = figures
-        if tables:
-            paper["_table_assets"] = tables
+        write_fallback_text_content(txt_path, text_fallback)
         glance = generate_glance_overview(title, abstract_en) or build_glance_fallback(paper)
         if glance:
             paper["_glance_overview"] = glance
@@ -1640,8 +1737,8 @@ def process_paper(
         return paper_id, title
 
     # 新文件：生成完整内容
-    pdf_url = str(paper.get("link") or paper.get("pdf_url") or "").strip()
-    ensure_text_content(pdf_url, txt_path)
+    pdf_url = resolve_paper_content_url(paper)
+    ensure_text_content(pdf_url, txt_path, text_fallback)
     figures, tables = maybe_generate_paper_media(
         paper,
         docs_dir=docs_dir,

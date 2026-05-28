@@ -202,6 +202,68 @@ class GenerateDocsMetaParseTest(unittest.TestCase):
 
         self.assertEqual(figures, [{"url": "assets/figures/arxiv/pid/fig-001.webp"}])
 
+    def test_ensure_text_content_writes_fallback_when_extraction_fails(self):
+        original_fetch = self.mod.fetch_paper_markdown_via_jina
+        original_get = self.mod.requests.get
+        self.mod.fetch_paper_markdown_via_jina = lambda _url: None
+
+        def fail_get(*_args, **_kwargs):
+            raise RuntimeError("network blocked")
+
+        self.mod.requests.get = fail_get
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                txt_path = Path(d) / "paper.txt"
+                text = self.mod.ensure_text_content(
+                    "https://example.test/article",
+                    str(txt_path),
+                    "fallback structured analysis",
+                )
+                self.assertEqual(text, "fallback structured analysis")
+                self.assertEqual(txt_path.read_text(encoding="utf-8"), "fallback structured analysis")
+        finally:
+            self.mod.fetch_paper_markdown_via_jina = original_fetch
+            self.mod.requests.get = original_get
+
+    def test_glance_only_process_uses_fallback_without_fulltext_or_media(self):
+        original_ensure = self.mod.ensure_text_content
+        original_media = self.mod.maybe_generate_paper_media
+        original_glance = self.mod.generate_glance_overview
+
+        def fail_fulltext(*_args, **_kwargs):
+            raise AssertionError("glance-only must not fetch full text")
+
+        self.mod.ensure_text_content = fail_fulltext
+        self.mod.maybe_generate_paper_media = fail_fulltext
+        self.mod.generate_glance_overview = lambda _title, _abstract: ""
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                paper_id, _title = self.mod.process_paper(
+                    {
+                        "id": "paper-1",
+                        "title": "Fallback Paper",
+                        "abstract": "An abstract for fallback mode.",
+                        "link": "https://example.test/paper",
+                        "source": "openalex",
+                        "chinese_summary": "中文摘要",
+                        "_essay_agent_analysis": {"研究主题": "主题"},
+                    },
+                    "quick",
+                    "20260528",
+                    d,
+                    glance_only=True,
+                )
+                txt_files = list(Path(d).rglob("*.txt"))
+                md_files = list(Path(d).rglob("*.md"))
+                self.assertEqual(paper_id, "202605/28/paper-1-fallback-paper")
+                self.assertEqual(len(txt_files), 1)
+                self.assertIn("中文摘要", txt_files[0].read_text(encoding="utf-8"))
+                self.assertEqual(len(md_files), 1)
+        finally:
+            self.mod.ensure_text_content = original_ensure
+            self.mod.maybe_generate_paper_media = original_media
+            self.mod.generate_glance_overview = original_glance
+
     def test_generate_glance_prompt_requires_richer_fields(self):
         captured = {}
 

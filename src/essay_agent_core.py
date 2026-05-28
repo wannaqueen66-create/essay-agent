@@ -1401,6 +1401,24 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
                 f.write(f"- 可借鉴启发：{row['可借鉴启发']}\n\n")
 
 
+def write_final_rows_json(json_path: str, df: pd.DataFrame, today_str: str, stats: dict | None = None) -> None:
+    """Persist the final daily paper set in the same order used by reports/email."""
+    rows = []
+    if not df.empty:
+        clean_df = df.where(pd.notnull(df), None)
+        rows = clean_df.to_dict(orient="records")
+    payload = {
+        "date": today_str,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "count": len(rows),
+        "rows": rows,
+        "stats": stats or {},
+    }
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
 def main():
     start_time = time.time()
     logger.info("essay_agent started")
@@ -1702,6 +1720,7 @@ def main():
     excel_path = os.path.join(output_dir, f"{output_prefix}_{today_str}.xlsx")
     md_path = os.path.join(output_dir, f"{output_prefix}_{today_str}.md")
     stats_path = os.path.join(output_dir, f"{output_prefix}_{today_str}_stats.json")
+    final_rows_path = os.path.join(output_dir, f"{output_prefix}_{today_str}_final.json")
 
     all_rows = list(today_new_rows)
     target_size = max(runtime.get("report_top_n", 10), runtime.get("email_top_n", 5))
@@ -1725,6 +1744,7 @@ def main():
         df.to_excel(excel_path, index=False)
 
     write_markdown(md_path, df, today_str, runtime.get("report_top_n", 10), stats=stats)
+    write_final_rows_json(final_rows_path, df, today_str, stats=stats)
 
     if not df.empty:
         mark_displayed(conn, df["url"].tolist(), df.get("doi", pd.Series(dtype=str)).fillna("").tolist())
@@ -1757,6 +1777,7 @@ def main():
     if removed_outputs > 0:
         logger.info("已清理旧输出文件：%d 个", removed_outputs)
     logger.info("已生成统计：%s", stats_path)
+    logger.info("已生成最终收录 JSON：%s", final_rows_path)
     logger.info("运行统计：%s", stats)
     elapsed = time.time() - start_time
     logger.info("总耗时：%.1f 秒（%.1f 分钟）", elapsed, elapsed / 60)

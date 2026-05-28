@@ -1,5 +1,6 @@
 window.EssayAgentWorkbench = (function () {
   const ACCESS_TOKEN_KEY = 'essay_agent_supabase_access_token_v1';
+  const READER_INDEX_URL = 'docs/essay-agent-reader-index.json';
   const DEFAULT_PAGE_SIZE = 20;
   const DEFAULT_FETCH_LIMIT = 200;
   const DEFAULT_SOURCES = ['arxiv', 'openalex', 'crossref', 'biorxiv', 'medrxiv', 'chemrxiv'];
@@ -72,6 +73,7 @@ window.EssayAgentWorkbench = (function () {
         'workbench.conclusion': '结论',
         'workbench.details': '摘要 / 结构化分析',
         'workbench.original': '原文链接',
+        'workbench.readInSite': '站内阅读',
         'workbench.favorite': '收藏',
         'workbench.unfavorite': '取消收藏',
         'workbench.markRead': '标记已读',
@@ -120,6 +122,7 @@ window.EssayAgentWorkbench = (function () {
         'workbench.conclusion': 'Conclusion',
         'workbench.details': 'Abstract / Structured Analysis',
         'workbench.original': 'Original',
+        'workbench.readInSite': 'Read in site',
         'workbench.favorite': 'Favorite',
         'workbench.unfavorite': 'Unfavorite',
         'workbench.markRead': 'Mark read',
@@ -250,6 +253,55 @@ window.EssayAgentWorkbench = (function () {
     return `${cfg.papersTable}?${params.toString()}`;
   };
 
+  const normalizeReaderIndex = (data) => {
+    const routes = {};
+    if (!data || typeof data !== 'object') return routes;
+    if (data.routes && typeof data.routes === 'object') {
+      Object.keys(data.routes).forEach((key) => {
+        const value = normalizeText(data.routes[key]);
+        if (key && value) routes[key] = value;
+      });
+    }
+    if (data.papers && typeof data.papers === 'object') {
+      Object.keys(data.papers).forEach((key) => {
+        const item = data.papers[key];
+        const value = normalizeText(item && item.route);
+        if (key && value) routes[key] = value;
+      });
+    }
+    return routes;
+  };
+
+  const loadReaderIndex = async () => {
+    if (typeof fetch !== 'function') return {};
+    try {
+      const res = await fetch(READER_INDEX_URL, { cache: 'no-store' });
+      if (!res.ok) return {};
+      return normalizeReaderIndex(await res.json());
+    } catch {
+      return {};
+    }
+  };
+
+  const getReaderRoute = (paper, readerIndex = {}) => {
+    if (!paper || !readerIndex || typeof readerIndex !== 'object') return '';
+    const candidates = [
+      paper.id,
+      paper.doi ? `doi:${String(paper.doi).trim().toLowerCase()}` : '',
+      paper.source && paper.link ? `${String(paper.source).trim().toLowerCase()}:${String(paper.link).trim()}` : '',
+    ].filter(Boolean);
+    for (const key of candidates) {
+      const route = normalizeText(readerIndex[key]);
+      if (route) return route.replace(/^#?\//, '');
+    }
+    return '';
+  };
+
+  const buildReaderHref = (route) => {
+    const value = normalizeText(route).replace(/^#?\//, '');
+    return value ? `#/${value}` : '';
+  };
+
   const getPaperDomain = (paper) => normalizeText(
     paper && (
       paper.domain_query ||
@@ -340,6 +392,7 @@ window.EssayAgentWorkbench = (function () {
     sort: normalizeText(options.sort || 'score_desc') || 'score_desc',
     rows: [],
     userStates: {},
+    readerIndex: {},
     loading: false,
     error: '',
   });
@@ -444,6 +497,7 @@ window.EssayAgentWorkbench = (function () {
     const source = paper.source || tr('workbench.sourceFallback');
     const domain = getPaperDomain(paper);
     const link = normalizeText(paper.link || '');
+    const readerHref = buildReaderHref(options.readerRoute || '');
     return `
       <article class="essay-agent-card${readOnly ? ' is-readonly' : ''}" data-paper-id="${escapeHtml(paper.id)}">
         <div class="essay-agent-card-topline">
@@ -465,6 +519,7 @@ window.EssayAgentWorkbench = (function () {
           <pre>${escapeHtml(JSON.stringify(analysis, null, 2))}</pre>
         </details>
         <div class="essay-agent-card-actions">
+          ${readerHref ? `<a href="${escapeHtml(readerHref)}">${escapeHtml(tr('workbench.readInSite'))}</a>` : ''}
           ${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">${escapeHtml(tr('workbench.original'))}</a>` : ''}
           <button type="button" data-action="favorite" data-next="${userState && userState.is_favorite ? '0' : '1'}" ${disabledAttrs}>${escapeHtml(favoriteLabel)}</button>
           <button type="button" data-action="read" data-next="${userState && userState.is_read ? '0' : '1'}" ${disabledAttrs}>${escapeHtml(readLabel)}</button>
@@ -599,7 +654,10 @@ window.EssayAgentWorkbench = (function () {
     }
     if (listEl) {
       listEl.innerHTML = page.items
-        .map((paper) => renderPaperCard(paper, state.userStates[paper.id], { readOnly }))
+        .map((paper) => renderPaperCard(paper, state.userStates[paper.id], {
+          readOnly,
+          readerRoute: getReaderRoute(paper, state.readerIndex),
+        }))
         .join('');
     }
     if (statusEl) {
@@ -617,8 +675,12 @@ window.EssayAgentWorkbench = (function () {
     state.error = '';
     paintState(root, state);
     try {
-      const rows = await requestJson(cfg, buildPapersQuery(cfg, state));
+      const [rows, readerIndex] = await Promise.all([
+        requestJson(cfg, buildPapersQuery(cfg, state)),
+        loadReaderIndex(),
+      ]);
       state.rows = Array.isArray(rows) ? rows : [];
+      state.readerIndex = readerIndex || {};
       state.userStates = await loadUserStates(cfg, state.rows.map((paper) => paper.id).filter(Boolean));
       state.error = '';
     } catch (err) {
@@ -779,6 +841,9 @@ window.EssayAgentWorkbench = (function () {
       renderPaperCard,
       getSourceOptions,
       getDomainOptions,
+      normalizeReaderIndex,
+      getReaderRoute,
+      buildReaderHref,
     },
   };
 })();

@@ -50,6 +50,7 @@ Required secrets usually include:
 - `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, and `ANTHROPIC_MODEL` are optional when `LLM_API_MODE=messages`.
 - `ARXIV_RETRIES`, `ARXIV_PAGE_SIZE`, `ARXIV_DELAY_SECONDS`, `ARXIV_BACKOFF_BASE_SECONDS`, and `ARXIV_QUERY_DELAY_SECONDS` can be tuned when GitHub Actions hits arXiv HTTP 429 limits.
 - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and frontend anon key in config.
+- `ESSAY_AGENT_READER_TOP_N`, `ESSAY_AGENT_READER_DEEP_TOP_N`, and `ESSAY_AGENT_READER_FULLTEXT` are optional controls for generated in-site reading pages.
 - SMTP/Brevo secrets for email reports.
 - Optional Zotero/Gist tokens when enabling knowledge-base sync or share snapshots.
 

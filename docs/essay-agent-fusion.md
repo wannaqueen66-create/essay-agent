@@ -24,6 +24,7 @@ ScholarLens uses `essay-agent` as the domain and data-production core, and reuse
 | Gist optional integration | technical base | Preserved as share snapshot | Product-facing label: 分享快照. |
 | Daily backups | ScholarLens | Added | `src/supabase_backup.py` exports Supabase tables to JSON and CSV. |
 | User favorites/read notes | ScholarLens | Added | `user_paper_states` uses RLS policies for per-user state. |
+| In-site essay-agent reading pages | ScholarLens | Added | Daily Top papers are converted to the base `deep_dive`/`quick_skim` docs format and indexed by `docs/essay-agent-reader-index.json`. |
 
 ## Required Setup
 
@@ -35,7 +36,7 @@ ScholarLens uses `essay-agent` as the domain and data-production core, and reuse
 
 ## Data Flow
 
-`essay-agent-fusion.yml` runs `src/essay_agent_actions_runner.py`, temporarily uses `config.essay-agent.yaml`, runs `src/essay_agent_core.py`, keeps Markdown/Excel/JSON/SQLite outputs, then calls `src/essay_agent_supabase.py` to upsert papers and daily run metadata into Supabase. The backup step exports Supabase tables to JSON/CSV artifacts.
+`essay-agent-fusion.yml` runs `src/essay_agent_actions_runner.py`, temporarily uses `config.essay-agent.yaml`, runs `src/essay_agent_core.py`, keeps Markdown/Excel/JSON/SQLite outputs, then calls `src/essay_agent_supabase.py` to upsert papers and daily run metadata into Supabase. It also converts the final daily Top papers into base reader docs through `src/essay_agent_reader.py` and `src/6.generate_docs.py`. The backup step exports Supabase tables to JSON/CSV artifacts.
 
 ## No-Regression Rule
 

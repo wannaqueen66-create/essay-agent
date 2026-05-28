@@ -41,6 +41,7 @@ global.window = {
           'workbench.saveNote': '保存笔记',
           'workbench.details': '摘要 / 结构化分析',
           'workbench.original': '原文链接',
+          'workbench.readInSite': '站内阅读',
         },
         en: {
           'workbench.emptyTitle': 'No matching papers',
@@ -54,6 +55,7 @@ global.window = {
           'workbench.saveNote': 'Save note',
           'workbench.details': 'Abstract / Structured Analysis',
           'workbench.original': 'Original',
+          'workbench.readInSite': 'Read in site',
         },
       };
       const value = (dict[this.getLang()] && dict[this.getLang()][key]) || (dict.zh && dict.zh[key]) || key;
@@ -165,9 +167,44 @@ function testFilteringAndMetrics() {
   assert.equal(metrics.domains, 2);
 }
 
+function testReaderIndexMappingAndCardLink() {
+  storage.lang = 'zh';
+  const index = api.normalizeReaderIndex({
+    routes: {
+      'doi:10.1000/demo': '202605/28/demo-paper',
+    },
+    papers: {
+      'openalex:https://example.test/paper': {
+        route: '202605/28/by-url',
+      },
+    },
+  });
+  assert.equal(api.getReaderRoute({ id: 'doi:10.1000/demo' }, index), '202605/28/demo-paper');
+  assert.equal(
+    api.getReaderRoute({ id: 'missing', source: 'openalex', link: 'https://example.test/paper' }, index),
+    '202605/28/by-url',
+  );
+
+  const html = api.renderPaperCard(
+    {
+      id: 'p-reader',
+      title: 'Reader Paper',
+      abstract: 'abstract',
+      source: 'openalex',
+      domain_relevance_score: 88,
+      analysis: {},
+    },
+    {},
+    { readerRoute: '202605/28/demo-paper' },
+  );
+  assert.match(html, /href="#\/202605\/28\/demo-paper"/);
+  assert.match(html, /站内阅读/);
+}
+
 testBuildPapersQuery();
 testPaginationAndReset();
 testReadOnlyCardAndEnglishCopy();
 testFilteringAndMetrics();
+testReaderIndexMappingAndCardLink();
 
 console.log('essay agent workbench tests passed');

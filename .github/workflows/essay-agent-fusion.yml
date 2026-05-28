@@ -65,6 +65,10 @@ jobs:
       ESSAY_AGENT_DB_PATH: papers.db
       ESSAY_AGENT_SUPABASE_PAPERS_TABLE: essay_agent_papers
       ESSAY_AGENT_SUPABASE_RUNS_TABLE: essay_agent_daily_runs
+      ESSAY_AGENT_READER_TOP_N: ${{ secrets.ESSAY_AGENT_READER_TOP_N }}
+      ESSAY_AGENT_READER_DEEP_TOP_N: ${{ secrets.ESSAY_AGENT_READER_DEEP_TOP_N }}
+      ESSAY_AGENT_READER_FULLTEXT: ${{ secrets.ESSAY_AGENT_READER_FULLTEXT }}
+      ESSAY_AGENT_READER_DOCS_CONCURRENCY: ${{ secrets.ESSAY_AGENT_READER_DOCS_CONCURRENCY }}
       DPR_EMBED_API_URL: ${{ secrets.DPR_EMBED_API_URL }}
       DPR_EMBED_API_KEY: ${{ secrets.DPR_EMBED_API_KEY }}
       DPR_EMBED_API_TIMEOUT: ${{ secrets.DPR_EMBED_API_TIMEOUT }}
@@ -111,6 +115,8 @@ jobs:
           export EMAIL_SMTP_PORT="${EMAIL_SMTP_PORT:-587}"
           export EMAIL_USE_TLS="${EMAIL_USE_TLS:-true}"
           export SUPABASE_SCHEMA="${SUPABASE_SCHEMA:-public}"
+          export ESSAY_AGENT_READER_FULLTEXT="${ESSAY_AGENT_READER_FULLTEXT:-true}"
+          export ESSAY_AGENT_READER_DOCS_CONCURRENCY="${ESSAY_AGENT_READER_DOCS_CONCURRENCY:-2}"
           export DPR_EMBED_API_URL="${DPR_EMBED_API_URL:-https://zwwen.online/embed}"
           export DPR_EMBED_API_TIMEOUT="${DPR_EMBED_API_TIMEOUT:-60}"
           export DPR_EMBED_ALLOW_LOCAL_FALLBACK="${DPR_EMBED_ALLOW_LOCAL_FALLBACK:-0}"
@@ -134,6 +140,9 @@ jobs:
           name: essay-agent-fusion-${{ github.run_id }}
           path: |
             output/
+            docs/
+            archive/*/recommend/
+            archive/*/logs/
             archive/essay-agent/
             archive/supabase-backups/
             papers.db
@@ -144,6 +153,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add archive/essay-agent || true
-          git diff --cached --quiet || git commit -m "chore: update essay-agent public backups"
+          git add docs archive/essay-agent archive/*/recommend archive/*/logs || true
+          git diff --cached --quiet || git commit -m "chore: update essay-agent reader outputs"
           git push || true
