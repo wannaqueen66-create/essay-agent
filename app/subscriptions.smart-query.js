@@ -625,6 +625,18 @@ window.SubscriptionsSmartQuery = (function () {
       const cModel = normalizeText(models[0] || '');
       if (cBase && cKey && cModel) return { baseUrl: cBase, apiKey: cKey, model: cModel };
     }
+    const auth = window.ScholarLensAuth || {};
+    if (typeof auth.getSharedSummaryLLM === 'function') {
+      const shared = auth.getSharedSummaryLLM();
+      if (shared && shared.baseUrl && shared.name) {
+        return {
+          baseUrl: shared.baseUrl,
+          apiKey: '',
+          model: shared.name,
+          shared: true,
+        };
+      }
+    }
     return null;
   };
 
@@ -945,9 +957,9 @@ window.SubscriptionsSmartQuery = (function () {
   const requestCandidatesByDesc = async (tag, desc) => {
     const llm = loadLlmConfig();
     if (!llm) {
-      throw new Error('未检测到可用大模型配置，请先完成密钥配置。');
+      throw new Error('未检测到可用大模型配置，请先使用邮箱登录，或完成密钥配置。');
     }
-    if (!llm.apiKey) {
+    if (!llm.apiKey && !llm.shared) {
       throw new Error('未检测到可用 API Key，请先在密钥配置里填写摘要/Chat Token。');
     }
 
@@ -979,6 +991,10 @@ window.SubscriptionsSmartQuery = (function () {
 
       const raw = normalizeText(llm.baseUrl);
       if (!raw) {
+        return out;
+      }
+      if (llm.shared) {
+        pushUnique(raw);
         return out;
       }
       expandEndpoint(raw);
@@ -1044,11 +1060,13 @@ window.SubscriptionsSmartQuery = (function () {
       endpoint,
       options = { useResponseFormat: true, includeTools: true },
     ) => {
-      const headers = {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: `Bearer ${llm.apiKey}`,
-      };
+      const headers = llm.shared && window.ScholarLensAuth
+        ? window.ScholarLensAuth.buildSharedFetchHeaders()
+        : {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${llm.apiKey}`,
+          };
       return fetch(endpoint, {
         method: 'POST',
         headers,

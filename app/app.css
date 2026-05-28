@@ -2168,7 +2168,11 @@ body.dpr-workbench-page .markdown-section {
 }
 
 .essay-agent-auth {
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(120px, 0.6fr) auto auto auto auto;
+}
+
+.essay-agent-auth [data-role="auth-status"] {
+  grid-column: 1 / -1;
 }
 
 .essay-agent-toolbar input,

@@ -59,6 +59,8 @@ jobs:
       EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
       EMAIL_TO: ${{ secrets.EMAIL_TO }}
       EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS }}
+      SCHOLARLENS_USER_EMAILS: ${{ secrets.SCHOLARLENS_USER_EMAILS }}
+      SCHOLARLENS_INVITE_USERS: ${{ secrets.SCHOLARLENS_INVITE_USERS }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       SUPABASE_SCHEMA: ${{ secrets.SUPABASE_SCHEMA }}
@@ -124,6 +126,11 @@ jobs:
           if [ "${{ github.event.inputs.skip_run }}" = "true" ]; then ARGS+=("--skip-run"); fi
           if [ "${{ github.event.inputs.no_embeddings }}" = "true" ]; then ARGS+=("--no-embeddings"); fi
           python src/essay_agent_actions_runner.py "${ARGS[@]}"
+
+      - name: Sync ScholarLens users from email recipients
+        if: always() && env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_KEY != ''
+        run: |
+          python src/sync_scholarlens_users.py
 
       - name: Export Supabase backup
         if: always() && env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_KEY != ''

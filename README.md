@@ -40,7 +40,8 @@ The web layer is intentionally a technical shell. The academic scope is not inhe
 2. Configure `config.yaml` so `source_backends.essay_agent` points to your Supabase project.
 3. Add GitHub Actions secrets for the model API, Supabase, email provider, and optional knowledge/share integrations.
 4. Enable GitHub Pages and GitHub Actions.
-5. Trigger `essay-agent-fusion.yml` manually once, then verify the ScholarLens workspace can read papers from Supabase.
+5. Deploy `supabase/functions/scholarlens-llm` if you want logged-in users to share the server-side model quota without configuring personal model keys.
+6. Trigger `essay-agent-fusion.yml` manually once, then verify the ScholarLens workspace can read papers from Supabase.
 
 Required secrets usually include:
 
@@ -50,8 +51,11 @@ Required secrets usually include:
 - `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, and `ANTHROPIC_MODEL` are optional when `LLM_API_MODE=messages`.
 - `ARXIV_RETRIES`, `ARXIV_PAGE_SIZE`, `ARXIV_DELAY_SECONDS`, `ARXIV_BACKOFF_BASE_SECONDS`, and `ARXIV_QUERY_DELAY_SECONDS` can be tuned when GitHub Actions hits arXiv HTTP 429 limits.
 - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and frontend anon key in config.
+- `SUPABASE_ANON_KEY` for the shared LLM Edge Function, plus `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SERVICE_KEY` for allowlist checks.
 - `ESSAY_AGENT_READER_TOP_N`, `ESSAY_AGENT_READER_DEEP_TOP_N`, and `ESSAY_AGENT_READER_FULLTEXT` are optional controls for generated in-site reading pages.
 - SMTP/Brevo secrets for email reports.
+- `EMAIL_TO` recipients are synced into `public.scholarlens_users`; add `SCHOLARLENS_USER_EMAILS` for extra login users and `SCHOLARLENS_INVITE_USERS=true` if the workflow should also send Supabase Auth invites.
+- `SUMMARY_API_KEY`, `SUMMARY_BASE_URL`, `SUMMARY_MODEL`, and optional `SCHOLARLENS_CHAT_MODELS` configure the shared model proxy used by logged-in users.
 - Optional Zotero/Gist tokens when enabling knowledge-base sync or share snapshots.
 
 ## No-Regression Rule

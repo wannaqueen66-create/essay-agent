@@ -57,8 +57,21 @@ create table if not exists public.essay_agent_daily_runs (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.scholarlens_users (
+  email text primary key,
+  role text not null default 'member',
+  is_active boolean not null default true,
+  source text not null default 'manual',
+  quota_policy jsonb not null default '{}'::jsonb,
+  last_synced_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint scholarlens_users_email_lowercase check (email = lower(email)),
+  constraint scholarlens_users_role_check check (role in ('admin', 'member'))
+);
+
 create table if not exists public.user_paper_states (
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   paper_id text not null,
   source_table text not null default 'essay_agent_papers',
   is_favorite boolean not null default false,
@@ -69,9 +82,29 @@ create table if not exists public.user_paper_states (
   primary key (user_id, paper_id, source_table)
 );
 
+alter table public.user_paper_states alter column user_id set default auth.uid();
+
 alter table public.essay_agent_papers enable row level security;
 alter table public.essay_agent_daily_runs enable row level security;
+alter table public.scholarlens_users enable row level security;
 alter table public.user_paper_states enable row level security;
+
+create or replace function public.is_scholarlens_user()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.scholarlens_users u
+    where u.email = lower(coalesce(auth.jwt() ->> 'email', ''))
+      and u.is_active = true
+  );
+$$;
+
+grant execute on function public.is_scholarlens_user() to anon, authenticated;
 
 drop policy if exists "Public read essay-agent papers" on public.essay_agent_papers;
 create policy "Public read essay-agent papers"
@@ -83,21 +116,26 @@ create policy "Public read essay-agent daily runs"
   on public.essay_agent_daily_runs for select
   using (true);
 
+drop policy if exists "Users read own ScholarLens membership" on public.scholarlens_users;
+create policy "Users read own ScholarLens membership"
+  on public.scholarlens_users for select
+  using (email = lower(coalesce(auth.jwt() ->> 'email', '')));
+
 drop policy if exists "Users read own paper states" on public.user_paper_states;
 create policy "Users read own paper states"
   on public.user_paper_states for select
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id and public.is_scholarlens_user());
 
 drop policy if exists "Users insert own paper states" on public.user_paper_states;
 create policy "Users insert own paper states"
   on public.user_paper_states for insert
-  with check (auth.uid() = user_id);
+  with check (auth.uid() = user_id and public.is_scholarlens_user());
 
 drop policy if exists "Users update own paper states" on public.user_paper_states;
 create policy "Users update own paper states"
   on public.user_paper_states for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  using (auth.uid() = user_id and public.is_scholarlens_user())
+  with check (auth.uid() = user_id and public.is_scholarlens_user());
 
 create or replace function public.match_essay_agent_papers(
   query_embedding vector(384),

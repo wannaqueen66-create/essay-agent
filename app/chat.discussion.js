@@ -48,7 +48,8 @@ window.PrivateDiscussionChat = (function () {
     const secret = window.decoded_secret_private || {};
     const utils = window.DPRLLMConfigUtils || {};
     if (typeof utils.resolveChatModels === 'function') {
-      return utils.resolveChatModels(secret);
+      const localModels = utils.resolveChatModels(secret);
+      if (localModels.length) return localModels;
     }
 
     const chatList = Array.isArray(secret.chatLLMs) ? secret.chatLLMs : [];
@@ -67,7 +68,13 @@ window.PrivateDiscussionChat = (function () {
         });
       });
     });
-    return models;
+    if (models.length) return models;
+
+    const auth = window.ScholarLensAuth || {};
+    if (typeof auth.buildSharedModelEntries === 'function') {
+      return auth.buildSharedModelEntries();
+    }
+    return [];
   };
   const inferChatApiProfile = (baseUrl, model) => {
     const utils = window.DPRLLMConfigUtils || {};
@@ -1024,10 +1031,10 @@ window.PrivateDiscussionChat = (function () {
 
     if (!chatModels.length) {
       aiAnswerDiv.textContent =
-        '当前未在密钥配置中找到可用的 Chat 模型，请先完成首页「新配置指引」。';
+        '当前未检测到可用 Chat 模型。请先使用邮箱登录，或完成首页「新配置指引」。';
       if (statusEl) {
         statusEl.textContent =
-          '未检测到可用 Chat 模型，请检查密钥配置。';
+          '未检测到可用 Chat 模型，请登录或检查密钥配置。';
         statusEl.style.color = '#c00';
       }
       input.disabled = false;
@@ -1050,8 +1057,9 @@ window.PrivateDiscussionChat = (function () {
 
     const apiKey = modelEntry ? (modelEntry.apiKey || '').trim() : '';
     const model = modelEntry ? modelEntry.name : '';
+    const isSharedModel = !!(modelEntry && modelEntry.shared);
 
-    if (!apiKey) {
+    if (!apiKey && !isSharedModel) {
       aiAnswerDiv.textContent =
         '未检测到可用的 Chat LLM API Key，请检查密钥配置。';
       if (statusEl) {
@@ -1080,6 +1088,7 @@ window.PrivateDiscussionChat = (function () {
     const endpoint = (() => {
       const raw = (modelEntry && modelEntry.baseUrl ? modelEntry.baseUrl : '').trim();
       if (!raw) return '';
+      if (isSharedModel) return raw;
       if (
         window.DPRLLMConfigUtils &&
         typeof window.DPRLLMConfigUtils.buildChatCompletionsEndpoint === 'function'
@@ -1110,7 +1119,7 @@ window.PrivateDiscussionChat = (function () {
     savePreferredModelName(model);
 
     if (statusEl) {
-      statusEl.textContent = `正在调用 Chat 模型 ${model}...`;
+      statusEl.textContent = `正在调用${isSharedModel ? '共享 ' : ' '}Chat 模型 ${model}...`;
       statusEl.style.color = '#666';
     }
 
@@ -1230,15 +1239,20 @@ window.PrivateDiscussionChat = (function () {
 	        fallbackPayload.max_tokens = primaryPayload.max_tokens;
 	      }
 
-      const doChatFetch = async (payload) => fetch(endpoint, {
+      const doChatFetch = async (payload) => {
+        const headers = isSharedModel && window.ScholarLensAuth
+          ? window.ScholarLensAuth.buildSharedFetchHeaders()
+          : {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${apiKey}`,
+            };
+        return fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
+          headers,
           signal: controller.signal,
           body: JSON.stringify(payload),
         });
+      };
 
       try {
         resp = await doChatFetch(primaryPayload);

@@ -60,12 +60,23 @@ window.EssayAgentWorkbench = (function () {
         'workbench.sources': '来源数',
         'workbench.domains': '领域数',
         'workbench.loaded': '已显示 {visible} / {total} 篇论文',
-        'workbench.tokenPlaceholder': 'Supabase access token，用于收藏、已读和笔记',
-        'workbench.saveToken': '保存 token',
-        'workbench.clearToken': '清除 token',
-        'workbench.tokenSaved': 'Token 已保存，可同步个人状态。',
+        'workbench.emailPlaceholder': '邮箱',
+        'workbench.passwordPlaceholder': '密码（可选，支持验证码登录）',
+        'workbench.otpPlaceholder': '邮箱验证码',
+        'workbench.passwordLogin': '邮箱+密码登录',
+        'workbench.sendOtp': '发送验证码',
+        'workbench.verifyOtp': '验证码登录',
+        'workbench.logout': '退出登录',
+        'workbench.tokenSaved': '已登录，可同步个人状态。',
         'workbench.readOnly': '游客只读模式',
-        'workbench.readOnlyHint': '配置 token 后可收藏、标记已读和保存笔记。',
+        'workbench.readOnlyHint': '邮箱登录后可收藏、标记已读和保存笔记。',
+        'workbench.authMissing': '当前部署缺少 Supabase 登录配置。',
+        'workbench.authNeedEmail': '请先填写邮箱。',
+        'workbench.authNeedPassword': '请填写密码，或使用验证码登录。',
+        'workbench.authNeedOtp': '请填写邮箱验证码。',
+        'workbench.authOtpSent': '验证码已发送，请检查邮箱。',
+        'workbench.authSignedIn': '已登录：{email}',
+        'workbench.authSignedOut': '已退出登录。',
         'workbench.sourceFallback': '来源',
         'workbench.relevance': '相关性',
         'workbench.topic': '主题',
@@ -109,12 +120,23 @@ window.EssayAgentWorkbench = (function () {
         'workbench.sources': 'Sources',
         'workbench.domains': 'Domains',
         'workbench.loaded': 'Showing {visible} / {total} papers',
-        'workbench.tokenPlaceholder': 'Supabase access token for favorites, read state, and notes',
-        'workbench.saveToken': 'Save token',
-        'workbench.clearToken': 'Clear token',
-        'workbench.tokenSaved': 'Token saved. Personal state sync is enabled.',
+        'workbench.emailPlaceholder': 'Email',
+        'workbench.passwordPlaceholder': 'Password (optional for OTP)',
+        'workbench.otpPlaceholder': 'Email code',
+        'workbench.passwordLogin': 'Email + password',
+        'workbench.sendOtp': 'Send code',
+        'workbench.verifyOtp': 'Verify code',
+        'workbench.logout': 'Sign out',
+        'workbench.tokenSaved': 'Signed in. Personal state sync is enabled.',
         'workbench.readOnly': 'Guest read-only mode',
-        'workbench.readOnlyHint': 'Configure a token to favorite, mark read, and save notes.',
+        'workbench.readOnlyHint': 'Sign in with email to favorite, mark read, and save notes.',
+        'workbench.authMissing': 'Supabase auth config is missing.',
+        'workbench.authNeedEmail': 'Enter your email first.',
+        'workbench.authNeedPassword': 'Enter a password or use email code login.',
+        'workbench.authNeedOtp': 'Enter the email code.',
+        'workbench.authOtpSent': 'Code sent. Check your email.',
+        'workbench.authSignedIn': 'Signed in: {email}',
+        'workbench.authSignedOut': 'Signed out.',
         'workbench.sourceFallback': 'Source',
         'workbench.relevance': 'Relevance',
         'workbench.topic': 'Topic',
@@ -165,7 +187,14 @@ window.EssayAgentWorkbench = (function () {
     };
   };
 
+  const authClient = () => window.ScholarLensAuth || null;
+
   const getAccessToken = () => {
+    const auth = authClient();
+    if (auth && typeof auth.getAccessToken === 'function') {
+      const token = normalizeText(auth.getAccessToken());
+      if (token) return token;
+    }
     try {
       return normalizeText(window.localStorage && window.localStorage.getItem(ACCESS_TOKEN_KEY));
     } catch {
@@ -185,6 +214,14 @@ window.EssayAgentWorkbench = (function () {
   };
 
   const isReadOnly = (token) => !normalizeText(token == null ? getAccessToken() : token);
+
+  const getSignedInEmail = () => {
+    const auth = authClient();
+    if (auth && typeof auth.getUserEmail === 'function') {
+      return normalizeText(auth.getUserEmail());
+    }
+    return '';
+  };
 
   const buildHeaders = (cfg, options = {}) => {
     const token = normalizeText(options.accessToken || '');
@@ -563,9 +600,13 @@ window.EssayAgentWorkbench = (function () {
           <div data-role="domain-chips">${renderDomainChips([], state.domain)}</div>
         </div>
         <div class="essay-agent-auth">
-          <input data-role="access-token" type="password" value="${escapeHtml(getAccessToken())}" placeholder="${escapeHtml(tr('workbench.tokenPlaceholder'))}" />
-          <button type="button" data-action="save-token">${escapeHtml(tr('workbench.saveToken'))}</button>
-          <button type="button" data-action="clear-token" class="essay-agent-secondary-btn">${escapeHtml(tr('workbench.clearToken'))}</button>
+          <input data-role="auth-email" type="email" value="${escapeHtml(getSignedInEmail())}" placeholder="${escapeHtml(tr('workbench.emailPlaceholder'))}" />
+          <input data-role="auth-password" type="password" placeholder="${escapeHtml(tr('workbench.passwordPlaceholder'))}" />
+          <input data-role="auth-otp" type="text" inputmode="numeric" placeholder="${escapeHtml(tr('workbench.otpPlaceholder'))}" />
+          <button type="button" data-action="login-password">${escapeHtml(tr('workbench.passwordLogin'))}</button>
+          <button type="button" data-action="send-otp" class="essay-agent-secondary-btn">${escapeHtml(tr('workbench.sendOtp'))}</button>
+          <button type="button" data-action="verify-otp" class="essay-agent-secondary-btn">${escapeHtml(tr('workbench.verifyOtp'))}</button>
+          <button type="button" data-action="logout" class="essay-agent-secondary-btn">${escapeHtml(tr('workbench.logout'))}</button>
           <span data-role="auth-status" class="${isReadOnly() ? 'essay-agent-readonly-hint' : ''}">${escapeHtml(isReadOnly() ? tr('workbench.readOnlyHint') : tr('workbench.tokenSaved'))}</span>
         </div>
         <div class="essay-agent-status" data-role="status">${escapeHtml(tr('workbench.ready'))}</div>
@@ -617,7 +658,10 @@ window.EssayAgentWorkbench = (function () {
     if (sourceEl) sourceEl.innerHTML = renderSourceOptions(getSourceOptions(state.rows), state.source);
     syncControlValues(root, state);
     if (authStatusEl) {
-      authStatusEl.textContent = readOnly ? tr('workbench.readOnlyHint') : tr('workbench.tokenSaved');
+      const email = getSignedInEmail();
+      authStatusEl.textContent = readOnly
+        ? tr('workbench.readOnlyHint')
+        : (email ? tr('workbench.authSignedIn', { email }) : tr('workbench.tokenSaved'));
       authStatusEl.classList.toggle('essay-agent-readonly-hint', readOnly);
     }
     if (state.loading) {
@@ -719,18 +763,48 @@ window.EssayAgentWorkbench = (function () {
         paintState(root, state);
         return;
       }
-      if (action === 'save-token') {
-        const input = root.querySelector('[data-role="access-token"]');
-        setAccessToken(input ? input.value : '');
+      if (action === 'login-password' || action === 'send-otp' || action === 'verify-otp' || action === 'logout') {
+        const statusEl = root.querySelector('[data-role="auth-status"]');
+        const auth = authClient();
+        if (!auth) {
+          if (statusEl) statusEl.textContent = tr('workbench.authMissing');
+          return;
+        }
+        const emailInput = root.querySelector('[data-role="auth-email"]');
+        const passwordInput = root.querySelector('[data-role="auth-password"]');
+        const otpInput = root.querySelector('[data-role="auth-otp"]');
+        const email = normalizeText(emailInput && emailInput.value);
+        const password = normalizeText(passwordInput && passwordInput.value);
+        const otp = normalizeText(otpInput && otpInput.value);
+        try {
+          button.disabled = true;
+          if (action === 'login-password') {
+            if (!email) throw new Error(tr('workbench.authNeedEmail'));
+            if (!password) throw new Error(tr('workbench.authNeedPassword'));
+            await auth.signInWithPassword(email, password);
+            if (statusEl) statusEl.textContent = tr('workbench.authSignedIn', { email });
+          } else if (action === 'send-otp') {
+            if (!email) throw new Error(tr('workbench.authNeedEmail'));
+            await auth.sendOtp(email);
+            if (statusEl) statusEl.textContent = tr('workbench.authOtpSent');
+          } else if (action === 'verify-otp') {
+            if (!email) throw new Error(tr('workbench.authNeedEmail'));
+            if (!otp) throw new Error(tr('workbench.authNeedOtp'));
+            await auth.verifyOtp(email, otp);
+            if (statusEl) statusEl.textContent = tr('workbench.authSignedIn', { email });
+          } else if (action === 'logout') {
+            await auth.signOut();
+            setAccessToken('');
+            if (passwordInput) passwordInput.value = '';
+            if (otpInput) otpInput.value = '';
+            if (statusEl) statusEl.textContent = tr('workbench.authSignedOut');
+          }
+        } catch (err) {
+          if (statusEl) statusEl.textContent = err && err.message ? err.message : String(err);
+        } finally {
+          button.disabled = false;
+        }
         await loadPapers(root, state);
-        return;
-      }
-      if (action === 'clear-token') {
-        const input = root.querySelector('[data-role="access-token"]');
-        setAccessToken('');
-        if (input) input.value = '';
-        state.userStates = {};
-        paintState(root, state);
         return;
       }
 
