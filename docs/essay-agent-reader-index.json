@@ -1,0 +1,94 @@
+{
+  "generated_at": "2026-05-28T07:44:44.365585+00:00",
+  "papers": {
+    "doi:10.5281/zenodo.20208704": {
+      "route": "202605/28/essay-agent-openalex-161b7f73d970-diseo-de-un-centro-de-salud-mental-basado-en-criterios-de-psicologa-ambiental",
+      "title": "Diseño de un Centro de Salud Mental basado en criterios de Psicología Ambiental",
+      "source": "openalex",
+      "score": 94.0,
+      "section": "deep_dive",
+      "date": "20260528",
+      "updated_at": "2026-05-28T07:44:44.365437+00:00"
+    },
+    "doi:10.1016/j.asej.2026.104223": {
+      "route": "202605/28/essay-agent-crossref-a5963b4b8a04-virtual-reality-enhanced-analysis-of-siheyuan-spatial-perception-electroencephalography-galvanic-skin-response-and-surveys",
+      "title": "Virtual reality-enhanced analysis of Siheyuan spatial perception: electroencephalography, galvanic skin response, and surveys",
+      "source": "crossref",
+      "score": 91.0,
+      "section": "deep_dive",
+      "date": "20260528",
+      "updated_at": "2026-05-28T07:44:44.365472+00:00"
+    },
+    "doi:10.1016/j.landurbplan.2026.105644": {
+      "route": "202605/28/essay-agent-crossref-9fbf40387d81-the-association-between-objective-and-perceived-bird-diversity-and-the-mental-health-of-minoritized-communities-living-near-disused-parks-in-detroit",
+      "title": "The association between objective and perceived bird diversity and the mental health of minoritized communities living near disused parks in Detroit",
+      "source": "crossref",
+      "score": 86.0,
+      "section": "deep_dive",
+      "date": "20260528",
+      "updated_at": "2026-05-28T07:44:44.365491+00:00"
+    },
+    "openalex:https://aisel.aisnet.org/ecis2026/esports/esports/6": {
+      "route": "202605/28/essay-agent-openalex-51ff5abaf93a-from-flat-screens-to-immersive-virtual-reality-how-virtual-reality-influences-subjective-and-objective-performance-in-digital-sports",
+      "title": "From Flat Screens To Immersive Virtual Reality: How Virtual Reality Influences Subjective And Objective Performance In Digital Sports",
+      "source": "openalex",
+      "score": 82.0,
+      "section": "deep_dive",
+      "date": "20260528",
+      "updated_at": "2026-05-28T07:44:44.365509+00:00"
+    },
+    "doi:10.1016/j.tbs.2026.101294": {
+      "route": "202605/28/essay-agent-crossref-3f3b68f58be4-geographically-weighted-machine-learning-for-modeling-spatial-heterogeneity-and-nonlinearity-in-dockless-bike-sharing-and-built-environment-connection",
+      "title": "Geographically weighted machine learning for modeling spatial heterogeneity and nonlinearity in dockless bike-sharing and built environment connection",
+      "source": "crossref",
+      "score": 78.0,
+      "section": "deep_dive",
+      "date": "20260528",
+      "updated_at": "2026-05-28T07:44:44.365526+00:00"
+    },
+    "doi:10.1016/j.braen.2026.100019": {
+      "route": "202605/28/essay-agent-crossref-765a6201e6c4-assessing-realism-in-virtual-architecture-neural-and-subjective-responses-to-changes-in-level-of-detail",
+      "title": "Assessing realism in virtual architecture: Neural and subjective responses to changes in level of detail",
+      "source": "crossref",
+      "score": 78.0,
+      "section": "deep_dive",
+      "date": "20260528",
+      "updated_at": "2026-05-28T07:44:44.365541+00:00"
+    },
+    "doi:10.1016/j.tbs.2026.101241": {
+      "route": "202605/28/essay-agent-crossref-8b82cca33323-investigating-extra-environmental-exposure-in-bike-sharing-trips-spatial-patterns-and-built-environment-factors",
+      "title": "Investigating extra environmental exposure in bike-sharing trips: spatial patterns and built environment factors",
+      "source": "crossref",
+      "score": 78.0,
+      "section": "deep_dive",
+      "date": "20260528",
+      "updated_at": "2026-05-28T07:44:44.365555+00:00"
+    },
+    "doi:10.1016/j.amepre.2026.108280": {
+      "route": "202605/28/essay-agent-europepmc-fffcc3fad083-assessing-the-impact-of-extreme-climate-events-on-cardiovascular-disease-in-157-chinese-cities-2015-2020-a-spatial-and-causal-analysis",
+      "title": "Assessing the Impact of Extreme Climate Events on Cardiovascular Disease in 157 Chinese Cities (2015-2020): A Spatial and Causal Analysis.",
+      "source": "europepmc",
+      "score": 76.0,
+      "section": "deep_dive",
+      "date": "20260528",
+      "updated_at": "2026-05-28T07:44:44.365579+00:00"
+    }
+  },
+  "routes": {
+    "doi:10.5281/zenodo.20208704": "202605/28/essay-agent-openalex-161b7f73d970-diseo-de-un-centro-de-salud-mental-basado-en-criterios-de-psicologa-ambiental",
+    "openalex:https://revistas.fondoeditorial.uru.edu/index.php/tecnocientificauru/article/view/num29-2025-CVB-45-55": "202605/28/essay-agent-openalex-161b7f73d970-diseo-de-un-centro-de-salud-mental-basado-en-criterios-de-psicologa-ambiental",
+    "doi:10.1016/j.asej.2026.104223": "202605/28/essay-agent-crossref-a5963b4b8a04-virtual-reality-enhanced-analysis-of-siheyuan-spatial-perception-electroencephalography-galvanic-skin-response-and-surveys",
+    "crossref:https://doi.org/10.1016/j.asej.2026.104223": "202605/28/essay-agent-crossref-a5963b4b8a04-virtual-reality-enhanced-analysis-of-siheyuan-spatial-perception-electroencephalography-galvanic-skin-response-and-surveys",
+    "doi:10.1016/j.landurbplan.2026.105644": "202605/28/essay-agent-crossref-9fbf40387d81-the-association-between-objective-and-perceived-bird-diversity-and-the-mental-health-of-minoritized-communities-living-near-disused-parks-in-detroit",
+    "crossref:https://doi.org/10.1016/j.landurbplan.2026.105644": "202605/28/essay-agent-crossref-9fbf40387d81-the-association-between-objective-and-perceived-bird-diversity-and-the-mental-health-of-minoritized-communities-living-near-disused-parks-in-detroit",
+    "openalex:https://aisel.aisnet.org/ecis2026/esports/esports/6": "202605/28/essay-agent-openalex-51ff5abaf93a-from-flat-screens-to-immersive-virtual-reality-how-virtual-reality-influences-subjective-and-objective-performance-in-digital-sports",
+    "doi:10.1016/j.tbs.2026.101294": "202605/28/essay-agent-crossref-3f3b68f58be4-geographically-weighted-machine-learning-for-modeling-spatial-heterogeneity-and-nonlinearity-in-dockless-bike-sharing-and-built-environment-connection",
+    "crossref:https://doi.org/10.1016/j.tbs.2026.101294": "202605/28/essay-agent-crossref-3f3b68f58be4-geographically-weighted-machine-learning-for-modeling-spatial-heterogeneity-and-nonlinearity-in-dockless-bike-sharing-and-built-environment-connection",
+    "doi:10.1016/j.braen.2026.100019": "202605/28/essay-agent-crossref-765a6201e6c4-assessing-realism-in-virtual-architecture-neural-and-subjective-responses-to-changes-in-level-of-detail",
+    "crossref:https://doi.org/10.1016/j.braen.2026.100019": "202605/28/essay-agent-crossref-765a6201e6c4-assessing-realism-in-virtual-architecture-neural-and-subjective-responses-to-changes-in-level-of-detail",
+    "doi:10.1016/j.tbs.2026.101241": "202605/28/essay-agent-crossref-8b82cca33323-investigating-extra-environmental-exposure-in-bike-sharing-trips-spatial-patterns-and-built-environment-factors",
+    "crossref:https://doi.org/10.1016/j.tbs.2026.101241": "202605/28/essay-agent-crossref-8b82cca33323-investigating-extra-environmental-exposure-in-bike-sharing-trips-spatial-patterns-and-built-environment-factors",
+    "doi:10.1016/j.amepre.2026.108280": "202605/28/essay-agent-europepmc-fffcc3fad083-assessing-the-impact-of-extreme-climate-events-on-cardiovascular-disease-in-157-chinese-cities-2015-2020-a-spatial-and-causal-analysis",
+    "europepmc:https://doi.org/10.1016/j.amepre.2026.108280": "202605/28/essay-agent-europepmc-fffcc3fad083-assessing-the-impact-of-extreme-climate-events-on-cardiovascular-disease-in-157-chinese-cities-2015-2020-a-spatial-and-causal-analysis"
+  }
+}

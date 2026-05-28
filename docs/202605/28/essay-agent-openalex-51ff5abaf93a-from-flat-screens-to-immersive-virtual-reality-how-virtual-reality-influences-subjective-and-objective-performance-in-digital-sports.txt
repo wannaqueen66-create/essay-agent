@@ -1,0 +1,41 @@
+Title: AIS Electronic Library (AISeL) - ECIS 2026 Proceedings: From Flat Screens To Immersive Virtual Reality: How Virtual Reality Influences Subjective And Objective Performance In Digital Sports
+
+URL Source: https://aisel.aisnet.org/ecis2026/esports/esports/6
+
+Markdown Content:
+*   [**Dennis Lauer**, _University of Bayreuth_](https://aisel.aisnet.org/do/search/?q=%28author%3A%22Dennis%20Lauer%22%20AND%20-bp_author_id%3A%5B%2A%20TO%20%2A%5D%29%20OR%20bp_author_id%3A%28%22d6974f4f-9f65-4f8f-9074-4b6ffa406931%22%29&start=0&context=509156)[Follow](https://network.bepress.com/api/follow/subscribe?user=ZjFjOTQxMDA0NjhiOGZkNQ%3D%3D&institution=NWQ1NzUyN2I3ZmY0OTU5NQ%3D%3D&format=html "Follow Dennis Lauer")
+*   [**Jens-Christian Stoetzer**, _University of Bayreuth_](https://aisel.aisnet.org/do/search/?q=%28author%3A%22Jens-Christian%20Stoetzer%22%20AND%20-bp_author_id%3A%5B%2A%20TO%20%2A%5D%29%20OR%20bp_author_id%3A%28%22ca42601e-c783-454f-802c-2b72fc4ddfd0%22%29&start=0&context=509156)[Follow](https://network.bepress.com/api/follow/subscribe?user=MTczNjMzZGUwNDZhZjhkZg%3D%3D&institution=NWQ1NzUyN2I3ZmY0OTU5NQ%3D%3D&format=html "Follow Jens-Christian Stoetzer")
+*   [**Nina Weber**, _University of Bayreuth_](https://aisel.aisnet.org/do/search/?q=%28author%3A%22Nina%20Weber%22%20AND%20-bp_author_id%3A%5B%2A%20TO%20%2A%5D%29%20OR%20bp_author_id%3A%28%221bef5325-30d3-4436-ad83-7e8848ae3148%22%29&start=0&context=509156)[Follow](https://network.bepress.com/api/follow/subscribe?user=ZDBkMjcxZTJiNTcyMDA1OQ%3D%3D&institution=NWQ1NzUyN2I3ZmY0OTU5NQ%3D%3D&format=html "Follow Nina Weber")
+*   [**Florian Weiß**, _University of Bayreuth_](https://aisel.aisnet.org/do/search/?q=%28author%3A%22Florian%20Wei%C3%9F%22%20AND%20-bp_author_id%3A%5B%2A%20TO%20%2A%5D%29%20OR%20bp_author_id%3A%28%2274486f3f-6355-4165-b614-c60a83c545ac%22%29&start=0&context=509156)[Follow](https://network.bepress.com/api/follow/subscribe?user=ODBjZmQxNWVmYjU3OTUxZA%3D%3D&institution=NWQ1NzUyN2I3ZmY0OTU5NQ%3D%3D&format=html "Follow Florian Weiß")
+*   [**Christoph Buck**, _University of Applied Sciences Augsburg_](https://aisel.aisnet.org/do/search/?q=%28author%3A%22Christoph%20Buck%22%20AND%20-bp_author_id%3A%5B%2A%20TO%20%2A%5D%29%20OR%20bp_author_id%3A%28%224c9a899e-74c5-4650-be9b-b08ba5bd4ff5%22%29&start=0&context=509156)[Follow](https://network.bepress.com/api/follow/subscribe?user=NDg5MTE1YTIxZjM4ZWNlNw%3D%3D&institution=NWQ1NzUyN2I3ZmY0OTU5NQ%3D%3D&format=html "Follow Christoph Buck")
+*   [**Tobias Guggenberger**, _University of Bayreuth_](https://aisel.aisnet.org/do/search/?q=%28author%3A%22Tobias%20Guggenberger%22%20AND%20-bp_author_id%3A%5B%2A%20TO%20%2A%5D%29%20OR%20bp_author_id%3A%28%226dcf6d8b-55a8-41b1-9eb4-f83b05a36926%22%29&start=0&context=509156)[Follow](https://network.bepress.com/api/follow/subscribe?user=ZThiMDdiMmI0YjM1MzJlYg%3D%3D&institution=NWQ1NzUyN2I3ZmY0OTU5NQ%3D%3D&format=html "Follow Tobias Guggenberger")
+
+## Paper Number
+
+ECIS2026-2634
+
+## Paper Type
+
+CRP
+
+## Abstract
+
+Digital sports increasingly adopt Virtual Reality (VR), enabling players to perform in immersive VR conditions rather than via non-immersive screen-based conditions. Yet little is known about how this display modality shift affects subjective and objective performance. In a between-subject experimental design, 80 players completed the same digital sports task in a 3D vs. 2D condition. Direct comparisons show that the immersive VR condition improves subjective and objective performance. When presence and immersion are included as mediators, presence enhances both performance measures, whereas immersion influences only subjective performance. The direct effect of the display modality becomes non-significant, indicating that performance improvements stem from players’ experience of digital sports rather than from VR technology itself. Extending prior work that mainly examined subjective or isolated performance dimensions, this study considers both subjective and objective performance from a holistic perspective. Our findings suggest that such a display modality shift could enhance players’ performance.
+
+## Recommended Citation
+
+Lauer, Dennis; Stoetzer, Jens-Christian; Weber, Nina; Weiß, Florian; Buck, Christoph; and Guggenberger, Tobias, "From Flat Screens To Immersive Virtual Reality: How Virtual Reality Influences Subjective And Objective Performance In Digital Sports" (2026). _ECIS 2026 Proceedings_. 6. 
+
+ https://aisel.aisnet.org/ecis2026/esports/esports/6
+
+DOWNLOADS
+
+Since May 25, 2026
+
+COinS
+
+Jun 14th, 12:00 AM
+
+From Flat Screens To Immersive Virtual Reality: How Virtual Reality Influences Subjective And Objective Performance In Digital Sports
+
+Digital sports increasingly adopt Virtual Reality (VR), enabling players to perform in immersive VR conditions rather than via non-immersive screen-based conditions. Yet little is known about how this display modality shift affects subjective and objective performance. In a between-subject experimental design, 80 players completed the same digital sports task in a 3D vs. 2D condition. Direct comparisons show that the immersive VR condition improves subjective and objective performance. When presence and immersion are included as mediators, presence enhances both performance measures, whereas immersion influences only subjective performance. The direct effect of the display modality becomes non-significant, indicating that performance improvements stem from players’ experience of digital sports rather than from VR technology itself. Extending prior work that mainly examined subjective or isolated performance dimensions, this study considers both subjective and objective performance from a holistic perspective. Our findings suggest that such a display modality shift could enhance players’ performance.

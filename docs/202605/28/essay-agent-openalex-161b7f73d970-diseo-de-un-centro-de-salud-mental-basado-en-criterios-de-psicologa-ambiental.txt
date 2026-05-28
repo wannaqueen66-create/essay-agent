@@ -1,0 +1,82 @@
+Title: Diseño de un Centro de Salud Mental con Criterios de la Psicología Ambiental
+
+URL Source: https://revistas.fondoeditorial.uru.edu/index.php/tecnocientificauru/article/view/num29-2025-CVB-45-55
+
+Markdown Content:
+## Autores/as
+
+*    Valeria S Calles Palumbo  Universidad Rafael Urdaneta [](https://ror.org/031j8q670)[https://orcid.org/0009-0008-8367-3070](https://orcid.org/0009-0008-8367-3070)
+*    Carla I Villalobos Molero  Universidad Rafael Urdaneta [](https://ror.org/031j8q670)[https://orcid.org/0009-0000-6547-4221](https://orcid.org/0009-0000-6547-4221)
+*    Leonardo A Badell Gutierrez  Universidad Rafael Urdaneta [](https://ror.org/031j8q670)[https://orcid.org/0000-0002-0296-2399](https://orcid.org/0000-0002-0296-2399)
+
+## DOI:
+
+[https://doi.org/10.5281/zenodo.20208703](https://doi.org/10.5281/zenodo.20208703)
+## Palabras clave:
+
+ Inhibición, Tipología Asistencial, Centro de Salud Mental, Psicología Ambiental 
+## Resumen
+
+La presente investigación tiene como objetivo abordar el diseño de un centro de salud mental con criterios de la psicología ambiental. Para la investigación se analizó la falta de consideración por las necesidades emocionales y psicológicas de los pacientes con trastornos de salud mental, lo cual ha llevado a la deshumanización de los espacios asistenciales, viendo cómo esta situación puede impactar negativamente en la experiencia de los usuarios y su proceso de recuperación. Se propone un Centro de Salud Mental Especializado para adultos de entre 15 y 64 años que presenten patologías como trastornos afectivos y trastornos de ansiedad. La metodología utilizada es analítica, descriptiva y factible, basada en casos internacionales, con recomendaciones por expertos en el tema. Finalmente, se sugiere la implementación de este tipo de edificación para la atención especializada de pacientes con trastornos de salud mental, debido a su contribución en la recuperación de estos pacientes al proporcionar un ambiente terapéutico y seguro, promoviendo la conexión a la naturaleza, su entorno y la interacción social.
+
+## Descargas
+
+## Biografía del autor/a
+
+*   Valeria S Calles Palumbo , Universidad Rafael Urdaneta
+
+Facultad de Ingeniería, Escuela de Arquitectura, Maracaibo-Venezuela
+
+*   Carla I Villalobos Molero, Universidad Rafael Urdaneta
+
+Facultad de Ingeniería, Escuela de Arquitectura, Maracaibo-Venezuela
+
+*   Leonardo A Badell Gutierrez, Universidad Rafael Urdaneta
+
+Facultad de Ingeniería, Escuela de Arquitectura, Maracaibo-Venezuela, Universidad del Zulia, Facultad de Arquitectura y Diseño, Maracaibo-Venezuela
+
+## Referencias
+
+[1] Psiquiatría, “Centro de Salud Mental (CSM)”. [En línea]. Disponible en: [https://psiquiatria.com/glosario/centro-de-salud-mental](https://psiquiatria.com/glosario/centro-de-salud-mental). [Consultado: Ene. 29, 2024].
+
+[2] C. Tecglen, “¿Cómo y cuándo acudir a un centro de salud mental?”, 2023. [En línea]. Disponible en: [https://www.discapnet.es/salud/guias-y-articulos-de-salud/guia-sobre-salud-mental/como-y-cuando-acudir-un-centro-de-salud-mental-tipos-de-centros](https://www.discapnet.es/salud/guias-y-articulos-de-salud/guia-sobre-salud-mental/como-y-cuando-acudir-un-centro-de-salud-mental-tipos-de-centros). [Consultado: Mar. 4, 2024].
+
+[3] Fundación Instituto Spiral, “Salud Mental”, 2024. [En línea]. Disponible en: [https://fispiral.com.es/saludmental/](https://fispiral.com.es/saludmental/) [Consultado: Mar. 4, 2024].
+
+[4] B. Hernández, “Psicología Ambiental: la relación persona-medio ambiente”, Revista de psicología social aplicada, no. 2-3, pp. 5-14, 1997. [En línea]. Disponible en: [https://dialnet.unirioja.es/servlet/articulo?codigo=159311](https://dialnet.unirioja.es/servlet/articulo?codigo=159311). [Consultado: Mar. 4, 2024].
+
+[5] J. I. Aragonés, y M. Amérigo, Psicología Ambiental. Ediciones Pirámide, 1998.
+
+[6] A. M. Ullán, y P. Manzanera, “Las paredes cuentan: arte para humanizar un espacio de salud pediátrico”, Arte, Individuo y Sociedad, 21, 123-142, 2009. [En línea]. Disponible en: [https://revistas.ucm.es/index.php/ARIS/article/view/ARIS0909110123A](https://revistas.ucm.es/index.php/ARIS/article/view/ARIS0909110123A)[https://www.redalyc.org/pdf/5135/513551277009.pdf](https://www.redalyc.org/pdf/5135/513551277009.pdf). [Consultado: Ago. 6, 2025].
+
+[7] M. Schweitzer, L. Gilpin, y S. Frampton, “Healing Spaces: Elements of Environmental Design That Make an Impact on Health”, The journal of Alternative and Complementary Medicine, vol. 10, no.1, 71-83, 2004. [Internet]. Disponible en: [https://www.liebertpub.com/doi/pdf/10.1089/acm.2004.10.S-71?download=true](https://www.liebertpub.com/doi/pdf/10.1089/acm.2004.10.S-71?download=true)
+
+[8] E. Roth, Psicología Ambiental: Interfase entre conducta y naturaleza. Revista Ciencia y Cultura,no. 8, pp. 63-78, 2000. [En línea]. Disponible en: [https://www.studocu.com/es-ar/document/universidad-de-buenos-aires/psicologia/roth-2000-psicologia-ambiental-interfase-entre-conducta-y-naturaleza/121325722](https://www.studocu.com/es-ar/document/universidad-de-buenos-aires/psicologia/roth-2000-psicologia-ambiental-interfase-entre-conducta-y-naturaleza/121325722)
+
+[9] R. S. Ulrich, “La vista a través de una ventana puede influir en la recuperación de una cirugía”, Science, vol. 224, no. 4647, pp. 420-421, 1984. [En línea]. Disponible en: [https://www.researchgate.net/publication/17043718_View_Through_a_Window_May_Influence_Recovery_from_Surgery](https://www.researchgate.net/publication/17043718_View_Through_a_Window_May_Influence_Recovery_from_Surgery). [Consultado: Ago. 6, 2025].
+
+[10] R. Kaplan, S. Kaplan, y R. L. Ryan, With people in mind: design and management of everyday nature, Island Press, 2000. [En línea]. Disponible en: [https://placesjournal.org/assets/legacy/pdfs/with-people-in-mind-design-and-management-of-everyday-nature.pdf](https://placesjournal.org/assets/legacy/pdfs/with-people-in-mind-design-and-management-of-everyday-nature.pdf). [Consultado: Ago. 6, 2025].
+
+[11] I. L. McHarg, Design with nature. Wiley, New York, EE. UU: Natural History Press, 1969.
+
+[12] D. Appleyard, “Livable Streets: Protected Neighborhoods?”, The Annals of the American Academy of Political and Social Science: Changing Views on Historical Conservation in Cities, pp. 106-117, 1980.
+
+[13] F. Lotito Catino, “Arquitectura, Psicología, Espacio, e Individuo”, Arquitectura / Urbanismo / Sustentabilidad, vol. 6, no. 17, 2009. [En línea]. Disponible en: [http://revistas.uach.cl/pdf/aus/n6/art03.pdf](http://revistas.uach.cl/pdf/aus/n6/art03.pdf). [Consultado: Mar. 4, 2024].
+
+[14] K. Lynch, The image of the city. MIT Press, USA. 1960.
+
+[15] J. Gehl, Ciudades para la gente. 1ra Ed. Ciudad Autónoma de Buenos Aire: Infinito, 2010.
+
+[16] M. Zabella, “Del Miedo a la Calma. Espacios para la Salud Mental”, Trabajo Fin de Grado, Proyectos Arquitectónicos, Universidad Politécnica de Madrid, Madrid, España, 2023. [En línea]. Disponible en: [https://oa.upm.es/72578/](https://oa.upm.es/72578/). [Consultado: Ene. 21, 2024].
+
+[17] G. Evans, “The Built. Environment and Mental Health”, Journal of Urban Health: Bulletin of the New York Academy of Medicine, vol. 80, pp. 536-555, 2003. [En línea]. Disponible en: [https://link.springer.com/article/10.1093/jurban/jtg063](https://link.springer.com/article/10.1093/jurban/jtg063)
+
+[18] R. Neutra, Realismo Biológico. Un nuevo Renacimiento humanístico en arquitectura. Buenos Aires, Argentina: Nueva Visión, 1973.
+
+[19] L. Becerra, “Arquitectura como herramienta terapéutica en el campo de la salud mental”, Trabajo Especial de Grado, Fac. Arquitectura, Univ. de Chile, 2017. [En línea]. Disponible en: [https://repositorio.uchile.cl/handle/2250/144264](https://repositorio.uchile.cl/handle/2250/144264)
+
+[20] M. Richard De Voe (Ed.), “Urban thinker with and ecologist ́s eye-Jane Jacobs Legacy”, Coastal Heritage, vol. 20, no. 1, 2011.
+
+[21] O. Neuman, Defensible Space; Crime Prevention Through Urban Design. 3ra Ed. Nueva York, EE.UU: Collier Books, 1978.
+
+[22] Normas para equipamiento urbano, Gaceta Oficial de la República de Venezuela N° 33.289. Caracas, Venezuela. Resolución No 151 de fecha 14 de agosto de 1985. Disponible en: [https://www.fau.ucv.ve/idec/normas_construccion/Gaceta_Normas_equipamiento.pdf](https://www.fau.ucv.ve/idec/normas_construccion/Gaceta_Normas_equipamiento.pdf)
