@@ -138,6 +138,23 @@ class ConferenceWorkflowAndUiTest(unittest.TestCase):
         self.assertIn("loadLocalSecretPayloadPreferred", secret_js)
         self.assertIn("DEFAULT_RERANKER_PROFILE.value", secret_js)
         self.assertIn("secret.private", gitignore)
+        self.assertIn("missing_secret_public", secret_js)
+        self.assertIn("isPublicHostedPage", secret_js)
+
+    def test_workbench_route_is_landing_like_page(self):
+        root = pathlib.Path(__file__).resolve().parents[1]
+        docsify = (root / "app" / "docsify-plugin.js").read_text(encoding="utf-8")
+        css = (root / "app" / "app.css").read_text(encoding="utf-8")
+
+        self.assertTrue((root / "docs" / "essay-agent-workbench.md").exists())
+        self.assertTrue((root / "docs_init" / "essay-agent-workbench.md").exists())
+        self.assertIn("isWorkbenchRoutePath", docsify)
+        self.assertIn("cleanupPaperChatSurface", docsify)
+        self.assertIn("document.title = getWorkbenchTitle()", docsify)
+        self.assertIn("isLandingLikePage = isHomePage || isReportPage || isWorkbenchPage", docsify)
+        self.assertIn("dpr-workbench-page", docsify)
+        self.assertIn("data-essay-agent-workbench-link", docsify)
+        self.assertIn("body.dpr-workbench-page #paper-chat-container", css)
 
 
 if __name__ == "__main__":

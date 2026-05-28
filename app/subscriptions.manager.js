@@ -115,6 +115,14 @@ window.SubscriptionsManager = (function () {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+  const translate = (key, params, fallback) => {
+    const helper = window.ScholarLensI18n;
+    if (helper && typeof helper.t === 'function') {
+      const value = helper.t(key, params);
+      if (value && value !== key) return value;
+    }
+    return fallback || key;
+  };
   const MAX_PROFILE_TAG_CHARS = 12;
   const sanitizeProfileTag = (value) => {
     const base = normalizeText(value);
@@ -482,6 +490,11 @@ window.SubscriptionsManager = (function () {
     }
     return true;
   };
+  const getConferenceYearDisabledTitle = (year) => translate(
+    'admin.pendingYear',
+    { year },
+    `${year} 论文暂未开放/暂未接入，暂不可选择。`,
+  );
 
   const renderConferenceChoiceButtons = () => {
     const conferenceWrap = document.getElementById('arxiv-admin-conference-choice-group');
@@ -498,13 +511,14 @@ window.SubscriptionsManager = (function () {
                 data-conference="${name}"
                 data-conference-year="${year}"
                 aria-pressed="${active ? 'true' : 'false'}"
-                ${disabled ? `disabled title="${year} 暂未接入，暂不可选择"` : ''}
+                ${disabled ? `disabled title="${escapeHtml(getConferenceYearDisabledTitle(year))}"` : ''}
               >${year}</button>`;
             })
             .join('');
           return `<div class="dpr-conference-choice-row">
             <div class="dpr-conference-choice-label">${name}</div>
             <div class="dpr-choice-row">${yearButtons}</div>
+            <div class="dpr-choice-disabled-note">${escapeHtml(getConferenceYearDisabledTitle(new Date().getFullYear()))}</div>
           </div>`;
         })
         .join('');
@@ -537,6 +551,19 @@ window.SubscriptionsManager = (function () {
       selected: true,
     }));
   };
+  const getNoProfilesEmptyMessage = (mode) => (
+    mode === 'conference'
+      ? translate(
+        'admin.noProfilesConference',
+        null,
+        '暂无词条。先点「新增」创建检索词条，再发起会议论文检索。',
+      )
+      : translate(
+        'admin.noProfilesDaily',
+        null,
+        '暂无词条。先点「新增」创建检索词条，再发起快速抓取。',
+      )
+  );
   const renderProfilePicker = (targetEl, mode) => {
     if (!targetEl) return;
     const profiles = getProfilesForRun();
@@ -545,7 +572,7 @@ window.SubscriptionsManager = (function () {
       : profiles;
     if (!filtered.length) {
       targetEl.innerHTML = `<div class="dpr-profile-picker-empty">${
-        mode === 'daily' ? '暂无可快速抓取的词条。' : '暂无可检索的词条。'
+        escapeHtml(getNoProfilesEmptyMessage(mode))
       }</div>`;
       return;
     }
@@ -571,6 +598,99 @@ window.SubscriptionsManager = (function () {
   const renderProfilePickers = () => {
     renderProfilePicker(dailyProfilePickerEl, 'daily');
     renderProfilePicker(conferenceProfilePickerEl, 'conference');
+  };
+  const setElementHidden = (el, hidden) => {
+    if (!el) return;
+    el.hidden = !!hidden;
+    if (hidden) {
+      if (typeof el.setAttribute === 'function') el.setAttribute('hidden', '');
+    } else {
+      if (typeof el.removeAttribute === 'function') el.removeAttribute('hidden');
+    }
+  };
+  const syncAdminEmptyState = () => {
+    const hasProfiles = getProfilesForRun().length > 0;
+    if (panel && panel.classList) {
+      panel.classList.toggle('is-empty', !hasProfiles);
+    }
+    const dailyActionGrid = document && typeof document.querySelector === 'function'
+      ? document.querySelector('#arxiv-search-quick-run-side .dpr-task-action-grid')
+      : null;
+    const dailyPickerTools = document && typeof document.querySelector === 'function'
+      ? document.querySelector('#arxiv-search-quick-run-side .dpr-task-picker-tools')
+      : null;
+    const conferencePickerTools = document && typeof document.querySelector === 'function'
+      ? document.querySelector('#arxiv-conference-control-side .dpr-task-picker-tools')
+      : null;
+    const conferenceChoiceField = document && typeof document.querySelector === 'function'
+      ? document.querySelector('#arxiv-conference-control-side .dpr-choice-field')
+      : null;
+    const dangerModule = document && typeof document.querySelector === 'function'
+      ? document.querySelector('.dpr-task-danger-module')
+      : null;
+    [
+      dailyActionGrid,
+      dailyPickerTools,
+      quickRunStartBtn,
+      quickRunOpenWorkflowPanelBtn,
+      conferencePickerTools,
+      conferenceChoiceField,
+      quickRunConferenceBtn,
+      dangerModule,
+    ].forEach((el) => setElementHidden(el, !hasProfiles));
+    [
+      quickRunStartBtn,
+      quickRunOpenWorkflowPanelBtn,
+      quickRunConferenceBtn,
+      resetContentBtn,
+      dailySelectAllBtn,
+      dailyClearAllBtn,
+      conferenceSelectAllBtn,
+      conferenceClearAllBtn,
+    ].forEach((btn) => {
+      if (!btn) return;
+      if (!hasProfiles) {
+        btn.disabled = true;
+        if (btn.classList && typeof btn.classList.add === 'function') {
+          btn.classList.add('chat-quick-run-item--disabled');
+        } else if (btn.classList && typeof btn.classList.toggle === 'function') {
+          btn.classList.toggle('chat-quick-run-item--disabled', true);
+        }
+        btn.title = getNoProfilesEmptyMessage('daily');
+      } else {
+        if (btn.classList && typeof btn.classList.remove === 'function') {
+          btn.classList.remove('chat-quick-run-item--disabled');
+        } else if (btn.classList && typeof btn.classList.toggle === 'function') {
+          btn.classList.toggle('chat-quick-run-item--disabled', false);
+        }
+        if (
+          btn === quickRunOpenWorkflowPanelBtn ||
+          btn === resetContentBtn ||
+          btn === dailySelectAllBtn ||
+          btn === dailyClearAllBtn ||
+          btn === conferenceSelectAllBtn ||
+          btn === conferenceClearAllBtn
+        ) {
+          btn.disabled = false;
+        }
+      }
+    });
+    if (!hasProfiles) {
+      if (quickRunHintEl) quickRunHintEl.textContent = getNoProfilesEmptyMessage('daily');
+      if (conferenceHintEl) conferenceHintEl.textContent = getNoProfilesEmptyMessage('conference');
+      if (quickRunMsgEl) {
+        quickRunMsgEl.textContent = getNoProfilesEmptyMessage('daily');
+        quickRunMsgEl.style.color = '#666';
+      }
+      const conferenceMsgEl = document && typeof document.getElementById === 'function'
+        ? document.getElementById('arxiv-admin-conference-run-msg')
+        : null;
+      if (conferenceMsgEl) {
+        conferenceMsgEl.textContent = getNoProfilesEmptyMessage('conference');
+        conferenceMsgEl.style.color = '#666';
+      }
+    }
+    return !hasProfiles;
   };
   const setProfileSelection = (profileId, selected) => {
     if (!window.SubscriptionsSmartQuery || typeof window.SubscriptionsSmartQuery.setProfileSelection !== 'function') {
@@ -627,10 +747,11 @@ window.SubscriptionsManager = (function () {
     const selectedProfiles = getSelectedProfilesForRun();
     const selectedProfileCount = selectedProfiles.length;
     const dailySelectedProfileCount = selectedProfileCount;
-    const dailyBlocked = hasUnsavedChanges || dailySelectedProfileCount < 1;
-    const conferenceBlocked =
-      hasUnsavedChanges || selectedProfileCount < 1 || selectedConferenceYearPairs.size < 1;
     renderProfilePickers();
+    const noProfiles = syncAdminEmptyState();
+    const dailyBlocked = hasUnsavedChanges || noProfiles || dailySelectedProfileCount < 1;
+    const conferenceBlocked =
+      hasUnsavedChanges || noProfiles || selectedProfileCount < 1 || selectedConferenceYearPairs.size < 1;
     [
       [quickRunStartBtn, dailyBlocked],
       [quickRunConferenceBtn, conferenceBlocked],
@@ -642,6 +763,8 @@ window.SubscriptionsManager = (function () {
       if (blocked) {
         if (hasUnsavedChanges) {
           title = btn === quickRunConferenceBtn ? '请先保存后再检索会议论文。' : '请先保存后再抓取。';
+        } else if (noProfiles) {
+          title = getNoProfilesEmptyMessage(btn === quickRunConferenceBtn ? 'conference' : 'daily');
         } else if (selectedProfileCount < 1) {
           title = '请先在上方选择至少一个词条。';
         } else if (btn === quickRunConferenceBtn && !selectedConferenceYearPairs.size) {
@@ -653,12 +776,16 @@ window.SubscriptionsManager = (function () {
       btn.title = title;
     });
     if (quickRunHintEl) {
-      quickRunHintEl.textContent = dailySelectedProfileCount > 0
+      quickRunHintEl.textContent = noProfiles
+        ? getNoProfilesEmptyMessage('daily')
+        : dailySelectedProfileCount > 0
         ? `已选 ${dailySelectedProfileCount} 个词条。`
         : '请选择至少一个词条。';
     }
     if (conferenceHintEl) {
-      conferenceHintEl.textContent = selectedProfileCount > 0
+      conferenceHintEl.textContent = noProfiles
+        ? getNoProfilesEmptyMessage('conference')
+        : selectedProfileCount > 0
         ? `已选 ${selectedProfileCount} 个词条。`
         : '先勾选词条，再勾选年份。';
     }
@@ -672,6 +799,16 @@ window.SubscriptionsManager = (function () {
     if (hasUnsavedChanges && conferenceMsgEl) {
       conferenceMsgEl.textContent = '有未保存修改，请先保存。';
       conferenceMsgEl.style.color = '#c00';
+    }
+    if (!hasUnsavedChanges && noProfiles) {
+      if (quickRunMsgEl) {
+        quickRunMsgEl.textContent = getNoProfilesEmptyMessage('daily');
+        quickRunMsgEl.style.color = '#666';
+      }
+      if (conferenceMsgEl) {
+        conferenceMsgEl.textContent = getNoProfilesEmptyMessage('conference');
+        conferenceMsgEl.style.color = '#666';
+      }
     }
   };
 
@@ -1113,7 +1250,7 @@ window.SubscriptionsManager = (function () {
       <div id="arxiv-search-panel">
         <div id="arxiv-search-panel-header">
           <div class="dpr-admin-header-left">
-            <div style="font-weight:600;">后台管理</div>
+            <div style="font-weight:600;" data-i18n="admin.title">${escapeHtml(translate('admin.title', null, '后台管理'))}</div>
             <div class="dpr-admin-tabs" role="tablist" aria-label="后台管理面板切换">
               <button
                 id="dpr-admin-tab-daily"
@@ -1123,7 +1260,7 @@ window.SubscriptionsManager = (function () {
                 aria-selected="true"
                 aria-controls="arxiv-search-quick-run-side"
               >
-                日常管理
+                <span data-i18n="admin.daily">${escapeHtml(translate('admin.daily', null, '日常管理'))}</span>
               </button>
               <button
                 id="dpr-admin-tab-conference"
@@ -1133,14 +1270,14 @@ window.SubscriptionsManager = (function () {
                 aria-selected="false"
                 aria-controls="arxiv-conference-control-side"
               >
-                会议论文
+                <span data-i18n="admin.conference">${escapeHtml(translate('admin.conference', null, '会议论文'))}</span>
               </button>
             </div>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
-            <button id="arxiv-config-save-btn" class="arxiv-tool-btn" style="padding:2px 10px; background:#2e7d32; color:white;">保存</button>
-            <button id="arxiv-open-secret-setup-btn" class="arxiv-tool-btn" style="padding:2px 10px;">密钥配置</button>
-            <button id="arxiv-search-close-btn" class="arxiv-tool-btn" style="padding:2px 6px;">关闭</button>
+            <button id="arxiv-config-save-btn" class="arxiv-tool-btn" style="padding:2px 10px; background:#2e7d32; color:white;" data-i18n="admin.save">${escapeHtml(translate('admin.save', null, '保存'))}</button>
+            <button id="arxiv-open-secret-setup-btn" class="arxiv-tool-btn" style="padding:2px 10px;" data-i18n="admin.secret">${escapeHtml(translate('admin.secret', null, '密钥配置'))}</button>
+            <button id="arxiv-search-close-btn" class="arxiv-tool-btn" style="padding:2px 6px;" data-i18n="admin.close">${escapeHtml(translate('admin.close', null, '关闭'))}</button>
           </div>
         </div>
 
@@ -1151,7 +1288,7 @@ window.SubscriptionsManager = (function () {
                 <div id="dpr-sq-display" class="dpr-sq-display"></div>
                 <div class="dpr-input-card">
                   <div class="dpr-inline-row">
-                    <button id="dpr-sq-open-chat-btn" class="arxiv-tool-btn" style="background:#2e7d32; color:#fff;">新增</button>
+                    <button id="dpr-sq-open-chat-btn" class="arxiv-tool-btn" style="background:#2e7d32; color:#fff;" data-i18n="admin.addProfile">${escapeHtml(translate('admin.addProfile', null, '新增词条'))}</button>
                   </div>
                 </div>
               </div>
@@ -1170,7 +1307,7 @@ window.SubscriptionsManager = (function () {
           >
             <div class="dpr-bulk-bar-head">
               <div>
-                <div class="chat-quick-run-title">快速抓取</div>
+                <div class="chat-quick-run-title" data-i18n="admin.quickRun">${escapeHtml(translate('admin.quickRun', null, '快速抓取'))}</div>
                 <div id="arxiv-admin-quick-run-hint" class="dpr-task-hint">默认全选词条，快速抓取不区分日常状态。</div>
               </div>
               <button id="arxiv-admin-open-workflow-panel-btn" class="arxiv-tool-btn dpr-task-workflow-btn" type="button">打开工作流</button>
@@ -1229,7 +1366,7 @@ window.SubscriptionsManager = (function () {
               <div class="dpr-bulk-bar-head">
                 <div>
                   <div class="dpr-title-inline">
-                    <div class="chat-quick-run-title">会议论文检索</div>
+                    <div class="chat-quick-run-title" data-i18n="admin.conferenceRun">${escapeHtml(translate('admin.conferenceRun', null, '会议论文检索'))}</div>
                     <div id="arxiv-admin-conference-hint" class="dpr-conference-note">默认全选词条。</div>
                   </div>
                 </div>
@@ -1652,11 +1789,30 @@ window.SubscriptionsManager = (function () {
       buildDefaultSourceBackend: (sourceKey, config) => buildDefaultSourceBackend(sourceKey, cloneDeep(config || {})),
       normalizePaperSources: (values, options) => normalizePaperSources(values, options),
       isConferenceYearSelectable: (conference, year) => isConferenceYearSelectable(conference, year),
+      getConferenceYearDisabledTitle: (year) => getConferenceYearDisabledTitle(year),
+      getNoProfilesEmptyMessage: (mode) => getNoProfilesEmptyMessage(mode),
+      syncAdminEmptyState: () => syncAdminEmptyState(),
+      renderConferenceChoiceButtons: () => renderConferenceChoiceButtons(),
       __setQuickRunMsgEl: (el) => {
         quickRunMsgEl = el || null;
       },
+      __setQuickRunStartBtn: (el) => {
+        quickRunStartBtn = el || null;
+      },
+      __setAdminPanel: (el) => {
+        panel = el || null;
+      },
+      __setQuickRunHintEl: (el) => {
+        quickRunHintEl = el || null;
+      },
+      __setConferenceHintEl: (el) => {
+        conferenceHintEl = el || null;
+      },
       __setQuickRunConferenceBtn: (el) => {
         quickRunConferenceBtn = el || null;
+      },
+      __setResetContentBtn: (el) => {
+        resetContentBtn = el || null;
       },
       __setUnsavedChanges: (value) => {
         hasUnsavedChanges = !!value;

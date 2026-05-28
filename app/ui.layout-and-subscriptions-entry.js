@@ -133,6 +133,15 @@
 
 // 3. 自定义订阅管理入口按钮脚本（左下角 📚）
 (function() {
+  function t(key, fallback) {
+    var helper = window.ScholarLensI18n;
+    if (helper && typeof helper.t === 'function') {
+      var value = helper.t(key);
+      if (value && value !== key) return value;
+    }
+    return fallback || key;
+  }
+
   function createCustomButton() {
     if (document.getElementById('custom-toggle-btn')) return;
 
@@ -146,7 +155,9 @@
     btn.id = 'custom-toggle-btn';
     btn.className = 'custom-toggle-btn';
     btn.innerHTML = '⚙️';
-    btn.title = '后台管理';
+    btn.title = t('admin.title', '后台管理');
+    btn.setAttribute('data-i18n-title', 'admin.title');
+    btn.setAttribute('data-i18n-aria-label', 'admin.title');
 
     btn.addEventListener('click', function () {
       var event = new CustomEvent('ensure-arxiv-ui');
@@ -200,8 +211,10 @@
     quickBtn.id = 'custom-quick-run-btn';
     quickBtn.className = 'custom-toggle-btn custom-quick-run-btn';
     quickBtn.innerHTML = '🚀';
-    quickBtn.title = '快速抓取';
-    quickBtn.setAttribute('aria-label', '快速抓取');
+    quickBtn.title = t('admin.quickRun', '快速抓取');
+    quickBtn.setAttribute('aria-label', t('admin.quickRun', '快速抓取'));
+    quickBtn.setAttribute('data-i18n-title', 'admin.quickRun');
+    quickBtn.setAttribute('data-i18n-aria-label', 'admin.quickRun');
 
     quickBtn.addEventListener('click', function (e) {
       e.preventDefault();

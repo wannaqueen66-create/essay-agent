@@ -11,10 +11,18 @@ require('../app/subscriptions.manager.js');
 const {
   normalizeSubscriptions,
   isConferenceYearSelectable,
+  getConferenceYearDisabledTitle,
+  getNoProfilesEmptyMessage,
+  syncAdminEmptyState,
   refreshQuickRunButtons,
   clearQuickRunUnsavedMessage,
   __setQuickRunMsgEl,
+  __setQuickRunStartBtn,
   __setQuickRunConferenceBtn,
+  __setQuickRunHintEl,
+  __setConferenceHintEl,
+  __setAdminPanel,
+  __setResetContentBtn,
   __setUnsavedChanges,
   __setRunSelectionState,
   __initializeConferenceChoices,
@@ -176,6 +184,11 @@ function testQuickRunUnsavedMessageClearsAfterSave() {
       color: '',
     },
   };
+  global.window.SubscriptionsSmartQuery = {
+    getSelectedProfileTags() {
+      return ['GENE'];
+    },
+  };
   __setQuickRunMsgEl(msgEl);
   __setUnsavedChanges(true);
   refreshQuickRunButtons();
@@ -187,14 +200,24 @@ function testQuickRunUnsavedMessageClearsAfterSave() {
   clearQuickRunUnsavedMessage();
   assert.equal(msgEl.textContent, '配置已保存，可以发起快速抓取。');
   assert.equal(msgEl.style.color, '#080');
+  delete global.window.SubscriptionsSmartQuery;
 }
 
 function buildMockButton() {
   const classes = new Set();
   return {
     disabled: false,
+    hidden: false,
     title: '',
     textContent: '开始检索',
+    setAttribute(name, value) {
+      this[name] = value;
+      if (name === 'hidden') this.hidden = true;
+    },
+    removeAttribute(name) {
+      delete this[name];
+      if (name === 'hidden') this.hidden = false;
+    },
     getAttribute(name) {
       if (name === 'data-default-title') return '一次性触发会议论文拉取任务';
       return '';
@@ -235,6 +258,76 @@ function testConferenceRunDisabledWhenUnsaved() {
   assert.equal(btn.title, '一次性触发会议论文拉取任务');
   __setQuickRunConferenceBtn(null);
   __setRunSelectionState({});
+  delete global.window.SubscriptionsSmartQuery;
+}
+
+function buildMockPanel() {
+  const classes = new Set();
+  return {
+    classList: {
+      toggle(name, enabled) {
+        if (enabled) classes.add(name);
+        else classes.delete(name);
+      },
+      contains(name) {
+        return classes.has(name);
+      },
+    },
+  };
+}
+
+function testAdminEmptyStateDisablesTaskControls() {
+  const startBtn = buildMockButton();
+  const conferenceBtn = buildMockButton();
+  const resetBtn = buildMockButton();
+  const panel = buildMockPanel();
+  const quickHint = { textContent: '' };
+  const conferenceHint = { textContent: '' };
+  const msgEl = {
+    textContent: '',
+    style: {
+      color: '',
+    },
+  };
+
+  global.window.SubscriptionsSmartQuery = {
+    getProfilesForRun() {
+      return [];
+    },
+    getSelectedProfilesForRun() {
+      return [];
+    },
+  };
+
+  __setQuickRunStartBtn(startBtn);
+  __setQuickRunConferenceBtn(conferenceBtn);
+  __setResetContentBtn(resetBtn);
+  __setAdminPanel(panel);
+  __setQuickRunHintEl(quickHint);
+  __setConferenceHintEl(conferenceHint);
+  __setQuickRunMsgEl(msgEl);
+  __setUnsavedChanges(false);
+
+  assert.equal(syncAdminEmptyState(), true);
+  refreshQuickRunButtons();
+
+  assert.equal(panel.classList.contains('is-empty'), true);
+  assert.equal(startBtn.disabled, true);
+  assert.equal(startBtn.hidden, true);
+  assert.equal(conferenceBtn.disabled, true);
+  assert.equal(resetBtn.disabled, true);
+  assert.match(quickHint.textContent, /暂无词条/);
+  assert.match(conferenceHint.textContent, /暂无词条/);
+  assert.match(msgEl.textContent, /新增/);
+  assert.match(getNoProfilesEmptyMessage('daily'), /快速抓取/);
+
+  __setQuickRunStartBtn(null);
+  __setQuickRunConferenceBtn(null);
+  __setResetContentBtn(null);
+  __setAdminPanel(null);
+  __setQuickRunHintEl(null);
+  __setConferenceHintEl(null);
+  __setQuickRunMsgEl(null);
   delete global.window.SubscriptionsSmartQuery;
 }
 
@@ -287,9 +380,11 @@ async function testQuickFetchIncludesAnySelectedProfile() {
   testNormalizeSubscriptionsConvertsChineseTagToEnglishFallback();
   await testRunProfileQuickFetchPassesProfileTagToWorkflow();
   testConferenceCurrentYearDisabledForPendingSources();
+  assert.match(getConferenceYearDisabledTitle(new Date().getFullYear()), /暂未/);
   testConferenceDefaultYearOnlySelects2025();
   testQuickRunUnsavedMessageClearsAfterSave();
   testConferenceRunDisabledWhenUnsaved();
+  testAdminEmptyStateDisablesTaskControls();
   await testQuickFetchIncludesAnySelectedProfile();
 
   console.log('subscriptions manager tests passed');

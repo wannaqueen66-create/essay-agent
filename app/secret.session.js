@@ -16,6 +16,7 @@
     const host = String((window.location && window.location.hostname) || '').toLowerCase();
     return host === 'localhost' || host === '127.0.0.1' || host === '::1';
   };
+  const isPublicHostedPage = () => !isLocalDebugHost();
 
   const getCurrentDirectoryUrl = () => {
     const loc = window.location || {};
@@ -43,11 +44,16 @@
         cache: 'no-store',
       });
       if (!resp || !resp.ok) {
+        if (resp && resp.status === 404 && isPublicHostedPage()) {
+          return null;
+        }
         throw new Error(`HTTP ${resp ? resp.status : 0} ${url}`);
       }
       return await resp.json();
     } catch (e) {
-      console.warn('[SECRET] 未能读取静态 secret.private：', e);
+      if (isLocalDebugHost()) {
+        console.warn('[SECRET] 未能读取静态 secret.private：', e);
+      }
     }
     return null;
   }
@@ -2060,16 +2066,28 @@
           // 没有保存的密码或自动解锁失败：展示解锁/游客界面
           setupOverlay(true);
           openSecretOverlay(overlay);
+        } else if (isPublicHostedPage()) {
+          // 公开部署缺少 secret.private 时默认进入游客只读模式。
+          // setupOverlay(false) 只用于注册 DPRSecretSetup.openStep2，保持浮层隐藏。
+          setupOverlay(false);
+          setAccessMode('guest', { mode: 'guest', reason: 'missing_secret_public' });
+          closeSecretOverlay(overlay);
         } else {
-          // 不存在 secret.private：始终展示初始化向导
+          // 本地调试缺少 secret.private：展示初始化向导，方便维护者生成配置。
           setupOverlay(false);
           openSecretOverlay(overlay);
         }
       } catch {
-        // 请求失败时按“文件不存在”处理：始终进入初始化向导
-        window.DPR_ACCESS_MODE = 'locked';
-        setupOverlay(false);
-        openSecretOverlay(overlay);
+        // 请求失败时按“文件不存在”处理：公开站点静默游客，本地保留初始化向导。
+        if (isPublicHostedPage()) {
+          setupOverlay(false);
+          setAccessMode('guest', { mode: 'guest', reason: 'secret_probe_failed_public' });
+          closeSecretOverlay(overlay);
+        } else {
+          window.DPR_ACCESS_MODE = 'locked';
+          setupOverlay(false);
+          openSecretOverlay(overlay);
+        }
       }
     })();
   }

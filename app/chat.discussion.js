@@ -11,6 +11,15 @@ window.PrivateDiscussionChat = (function () {
   const MAX_RECENT_QUESTIONS = 10; // 展示与保存都只保留最近 10 个（用户诉求）
   const MAX_PINNED_QUESTIONS = 50; // 防止无限增长
 
+  const translate = (key, fallback) => {
+    const helper = window.ScholarLensI18n;
+    if (helper && typeof helper.t === 'function') {
+      const value = helper.t(key);
+      if (value && value !== key) return value;
+    }
+    return fallback || key;
+  };
+
   // 读取用户偏好的 Chat 模型名称（跨页面生效）
   const loadPreferredModelName = () => {
     try {
@@ -214,7 +223,7 @@ window.PrivateDiscussionChat = (function () {
             <div style="text-align:center; color:#999">暂无讨论，输入你的想法开始对话（仅保存在本机）</div>
         </div>
         <div class="input-area">
-          <textarea id="user-input" rows="3" placeholder="针对这篇论文提问，仅自己可见..."></textarea>
+          <textarea id="user-input" rows="3" data-i18n-placeholder="chat.placeholder" placeholder="${translate('chat.placeholder', '针对这篇论文提问，仅自己可见...')}"></textarea>
           <button id="chat-questions-toggle-btn" class="chat-questions-toggle-btn" type="button" title="最近提问">🕘</button>
           <button id="send-btn">发送</button>
         </div>
@@ -223,11 +232,11 @@ window.PrivateDiscussionChat = (function () {
           <div class="chat-footer-controls">
             <button id="chat-sidebar-toggle-btn" class="chat-footer-icon-btn" type="button">☰</button>
             <button id="chat-settings-toggle-btn" class="chat-footer-icon-btn" type="button">⚙️</button>
-            <button id="chat-quick-run-btn" class="chat-footer-icon-btn" type="button" title="快速抓取">🚀</button>
+            <button id="chat-quick-run-btn" class="chat-footer-icon-btn" type="button" data-i18n-title="chat.quickRun" title="${translate('chat.quickRun', '快速抓取')}">🚀</button>
             <div id="chat-quick-run-modal" class="chat-quick-run-modal" aria-hidden="true">
               <div class="chat-quick-run-modal-panel">
                 <div class="chat-quick-run-modal-head">
-                  <div class="chat-quick-run-title">快速抓取</div>
+                  <div class="chat-quick-run-title" data-i18n="chat.quickRun">${translate('chat.quickRun', '快速抓取')}</div>
                   <button id="chat-quick-run-close-btn" class="chat-quick-run-close-btn" type="button" aria-label="关闭">✕</button>
                 </div>
                 <button id="chat-quick-run-10d-btn" class="chat-quick-run-item" type="button">立即搜寻十天内论文</button>

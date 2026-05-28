@@ -37,10 +37,34 @@ window.$docsify = {
         return vm.route.file.replace('.md', '');
       };
 
+      const normalizeRoutePath = (value) =>
+        String(value || '').replace(/^\/+/, '').replace(/\/$/, '');
+
+      const isWorkbenchRoutePath = (routePath) =>
+        normalizeRoutePath(routePath) === 'essay-agent-workbench';
+
+      const getWorkbenchTitle = () => {
+        const helper = window.ScholarLensI18n;
+        if (helper && typeof helper.t === 'function') {
+          return helper.t('workbench.title');
+        }
+        return 'ScholarLens 文献工作台';
+      };
+
+      const cleanupPaperChatSurface = () => {
+        try {
+          document
+            .querySelectorAll('#paper-chat-container, .chat-quick-run-modal')
+            .forEach((el) => el.remove());
+        } catch {
+          // ignore
+        }
+      };
+
       hook.beforeEach((content, next) => {
         try {
-          const routePath = String((vm.route && vm.route.path) || '').replace(/^\/+/, '').replace(/\/$/, '');
-          if (routePath === 'essay-agent-workbench') {
+          const routePath = normalizeRoutePath((vm.route && vm.route.path) || '');
+          if (isWorkbenchRoutePath(routePath)) {
             next('<div id="essay-agent-workbench-root"></div>');
             return;
           }
@@ -2494,6 +2518,40 @@ window.$docsify = {
           }
         };
 
+        const isPaperRouteId = (routeId) => {
+          const route = String(routeId || '')
+            .replace(/\.md$/i, '')
+            .replace(/\/$/, '');
+          return (
+            /^(?:\d{6}\/\d{2}|\d{8}-\d{8})\/(?!README$)[^/]+$/i.test(route) ||
+            /^conference\/[^/]+\/(?!README$).+$/i.test(route)
+          );
+        };
+
+        const cleanupNonPaperLi = (li) => {
+          if (!li || !li.classList) return;
+          li.classList.remove(
+            'sidebar-paper-item',
+            'sidebar-paper-read',
+            'sidebar-paper-good',
+            'sidebar-paper-bad',
+            'sidebar-paper-blue',
+            'sidebar-paper-orange',
+          );
+          Array.from(li.children || []).forEach((child) => {
+            if (
+              child &&
+              child.classList &&
+              (
+                child.classList.contains('sidebar-paper-left-actions') ||
+                child.classList.contains('sidebar-paper-rating-icons')
+              )
+            ) {
+              child.remove();
+            }
+          });
+        };
+
 	        const links = nav.querySelectorAll('a[href*="#/"]');
 	        links.forEach((a) => {
 	          const href = a.getAttribute('href') || '';
@@ -2502,6 +2560,15 @@ window.$docsify = {
 	          const paperIdFromHref = m[1].replace(/\/$/, '');
 	          const li = a.closest('li');
 	          if (!li) return;
+          if (
+            a.classList.contains('dpr-sidebar-root-link') ||
+            a.classList.contains('dpr-sidebar-noactive-link') ||
+            a.hasAttribute('data-essay-agent-workbench-link') ||
+            !isPaperRouteId(paperIdFromHref)
+          ) {
+            cleanupNonPaperLi(li);
+            return;
+          }
 	          // 标记这是一个具体论文条目，方便样式细化（避免整天标题一起高亮）
 	          li.classList.add('sidebar-paper-item');
 
@@ -2872,12 +2939,14 @@ window.$docsify = {
         isHomePage = false,
         isReportPage = false,
         isPaperPage = false,
+        isWorkbenchPage = false,
       } = {}) => {
         const body = document.body;
         if (!body || !body.classList) return;
         body.classList.toggle('dpr-home-page', !!isHomePage);
         body.classList.toggle('dpr-report-page', !!isReportPage);
-        body.classList.toggle('dpr-landing-page', !!(isHomePage || isReportPage));
+        body.classList.toggle('dpr-workbench-page', !!isWorkbenchPage);
+        body.classList.toggle('dpr-landing-page', !!(isHomePage || isReportPage || isWorkbenchPage));
         body.classList.toggle('dpr-paper-page', !!isPaperPage);
       };
 
@@ -4483,12 +4552,16 @@ window.$docsify = {
           const routePath = vm.route && vm.route.path ? vm.route.path : '';
           const lowerId = (paperId || '').toLowerCase();
           const file = vm && vm.route ? vm.route.file : '';
+          const isWorkbenchPage = isWorkbenchRoutePath(routePath);
           const isHomePage =
             !paperId ||
             lowerId === 'readme' ||
             routePath === '/' ||
             routePath === '';
-          const isLandingLikePage = isHomePage || isReportRouteFile(file);
+          const isLandingLikePage = isHomePage || isReportRouteFile(file) || isWorkbenchPage;
+          if (isWorkbenchPage) {
+            cleanupPaperChatSurface();
+          }
           const mainContent = document.querySelector('.markdown-section');
           if (mainContent) {
             const root = isPaperRouteFile(file) ? ensurePageContentRoot() : null;
@@ -4510,8 +4583,10 @@ window.$docsify = {
       // --- Docsify 生命周期钩子 ---
       hook.doneEach(function () {
         try {
-          const routePath = String((vm.route && vm.route.path) || '').replace(/^\/+/, '').replace(/\/$/, '');
-          if (routePath === 'essay-agent-workbench') {
+          const routePath = normalizeRoutePath((vm.route && vm.route.path) || '');
+          if (isWorkbenchRoutePath(routePath)) {
+            cleanupPaperChatSurface();
+            document.title = getWorkbenchTitle();
             const root = document.getElementById('essay-agent-workbench-root');
             if (root && window.EssayAgentWorkbench && typeof window.EssayAgentWorkbench.render === 'function') {
               window.EssayAgentWorkbench.render(root);
@@ -4524,6 +4599,12 @@ window.$docsify = {
         try {
           if (typeof window.DPRHideInitialSplash === 'function') {
             window.DPRHideInitialSplash();
+          }
+          if (
+            window.ScholarLensI18n &&
+            typeof window.ScholarLensI18n.translateDom === 'function'
+          ) {
+            window.ScholarLensI18n.translateDom(document);
           }
           document.dispatchEvent(new Event('dpr-docsify-ready'));
         } catch {
@@ -4544,6 +4625,7 @@ window.$docsify = {
         // 当前路由对应的“论文 ID”（简单用文件名去掉 .md）
         const paperId = getPaperId();
         const routePath = vm.route && vm.route.path ? vm.route.path : '';
+        const normalizedRoutePath = normalizeRoutePath(routePath);
         const lowerId = (paperId || '').toLowerCase();
 
         // 首页（如 README.md 或根路径）不展示研讨区，只做数学渲染和 Zotero 元数据更新
@@ -4555,8 +4637,13 @@ window.$docsify = {
         const file = vm && vm.route ? vm.route.file : '';
         const isReportPage = isReportRouteFile(file);
         const isPaperPage = isPaperRouteFile(file);
-        const isLandingLikePage = isHomePage || isReportPage;
-        syncPageTypeClasses({ isHomePage, isReportPage, isPaperPage });
+        const isWorkbenchPage = isWorkbenchRoutePath(normalizedRoutePath);
+        const isLandingLikePage = isHomePage || isReportPage || isWorkbenchPage;
+        if (isWorkbenchPage) {
+          cleanupPaperChatSurface();
+          document.title = getWorkbenchTitle();
+        }
+        syncPageTypeClasses({ isHomePage, isReportPage, isPaperPage, isWorkbenchPage });
         closePdfPreview();
         document.querySelectorAll('[data-paper-media-modal]').forEach((modal) => {
           modal.classList.remove('is-open', 'is-closing', 'is-fullscreen');
