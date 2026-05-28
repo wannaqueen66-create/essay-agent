@@ -1,12 +1,12 @@
 {
   "date": "2026-05-28",
-  "mode": "essay-agent",
-  "generated_at": "2026-05-28T07:44:44.323197+00:00",
-  "recommend_path": "/home/runner/work/essay-agent/essay-agent/archive/20260528/recommend/arxiv_papers_20260528.essay-agent.json",
+  "mode": "standard",
+  "generated_at": "2026-05-28T20:44:34.766894+00:00",
+  "recommend_path": "/home/runner/work/essay-agent/essay-agent/archive/20260528/recommend/arxiv_papers_20260528.standard.json",
   "recommend_exists": true,
-  "deep_count": 8,
+  "deep_count": 0,
   "quick_count": 0,
-  "total_count": 8,
+  "total_count": 0,
   "docs_dir": "/home/runner/work/essay-agent/essay-agent/docs",
   "day_readme": "/home/runner/work/essay-agent/essay-agent/docs/202605/28/README.md"
 }
