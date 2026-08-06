@@ -56,6 +56,7 @@ def load_env() -> tuple[OpenAI, dict]:
 
     runtime = {
         "openai_model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+        "openai_fallback_model": os.getenv("OPENAI_FALLBACK_MODEL", "").strip(),
         "days_back": int(os.getenv("DAYS_BACK", "2")),
         "max_results_per_query": int(os.getenv("MAX_RESULTS_PER_QUERY", "30")),
         "min_relevance_score": int(os.getenv("MIN_RELEVANCE_SCORE", "60")),
@@ -564,7 +565,7 @@ def parse_analysis_text(text: str) -> dict:
     return result
 
 
-def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3) -> dict:
+def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3, fallback_model: str | None = None) -> dict:
     prompt = f"""
 你是一个建筑学、体育空间、VR环境、行为轨迹与疗愈空间领域的专业文献分析助手。
 
@@ -617,21 +618,28 @@ JSON 必须包含以下字段：
 """
 
     last_error = None
-    for attempt in range(1, retries + 1):
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            text = response.choices[0].message.content.strip()
-            result = parse_analysis_text(text)
-            result["分析状态"] = "success"
-            return result
-        except Exception as e:
-            last_error = e
-            logger.warning("LLM 分析第 %d 次失败: %s", attempt, e)
-            if attempt < retries:
-                time.sleep(retry_delay * (2 ** (attempt - 1)))
+    models_to_try = [model]
+    if fallback_model and fallback_model != model:
+        models_to_try.append(fallback_model)
+
+    for m in models_to_try:
+        for attempt in range(1, retries + 1):
+            try:
+                response = client.chat.completions.create(
+                    model=m,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                text = (response.choices[0].message.content or "").strip()
+                result = parse_analysis_text(text)
+                result["分析状态"] = "success"
+                return result
+            except Exception as e:
+                last_error = e
+                tag = "主模型" if m == model else "备用模型"
+                logger.warning("LLM 分析(%s %s)第 %d 次失败: %s", tag, m, attempt, e)
+                if attempt < retries:
+                    time.sleep(retry_delay * (2 ** (attempt - 1)))
+        logger.warning("LLM 模型 %s 重试 %d 次失败,切换至下一模型", m, retries)
 
     return {
         "中文摘要": "",
@@ -645,8 +653,8 @@ JSON 必须包含以下字段：
         "研究方法": "",
         "数据/样本": "",
         "主要结论": "",
-        relation_key: "",
-        legacy_relation_key: "",
+        "与建筑/体育空间/疗愈环境研究相关性": "",
+        "与建筑/体育空间研究相关性": "",
         "相关性分数": 0,
         "可借鉴启发": "",
         "原始分析": f"分析失败：{last_error}",
@@ -1345,6 +1353,7 @@ def main():
                         abstract=short_abstract,
                         retries=analysis_retries,
                         retry_delay=retry_delay_seconds,
+                        fallback_model=runtime.get("openai_fallback_model") or None,
                     )
                     stats["analyzed"] += 1
 
@@ -1459,6 +1468,7 @@ def main():
                     abstract=short_abstract,
                     retries=analysis_retries,
                     retry_delay=retry_delay_seconds,
+                    fallback_model=runtime.get("openai_fallback_model") or None,
                 )
                 stats["analyzed"] += 1
 
