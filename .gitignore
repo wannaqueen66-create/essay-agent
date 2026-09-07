@@ -11,6 +11,16 @@ venv/
 
 # Local env
 .env
+.ai_profiles.json
+.model_cache/
+.venvs/
+.updates/
+.installed_version.json
+.code_manifest.json
+.update_history.json
+.last_upgrade
+.*.lock
+backups/
 
 # Runtime outputs
 output/

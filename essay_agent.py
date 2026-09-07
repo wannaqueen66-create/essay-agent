@@ -14,6 +14,7 @@ import requests
 import yaml
 from dotenv import load_dotenv
 from openai import OpenAI
+from agent_config import operation_lock, error_message
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,7 +48,7 @@ def parse_bool(value: str | None, default: bool = False) -> bool:
 
 
 def load_env() -> tuple[OpenAI, dict]:
-    load_dotenv()
+    load_dotenv(interpolate=False)
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("没有读取到 OPENAI_API_KEY,请检查 .env 文件。")
@@ -57,8 +58,8 @@ def load_env() -> tuple[OpenAI, dict]:
     runtime = {
         "openai_model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
         "openai_fallback_model": os.getenv("OPENAI_FALLBACK_MODEL", "").strip(),
-        "days_back": int(os.getenv("DAYS_BACK", "2")),
-        "max_results_per_query": int(os.getenv("MAX_RESULTS_PER_QUERY", "30")),
+        "days_back": int(os.getenv("DAYS_BACK", "1")),
+        "max_results_per_query": int(os.getenv("MAX_RESULTS_PER_QUERY", "10")),
         "min_relevance_score": int(os.getenv("MIN_RELEVANCE_SCORE", "60")),
         "force_refresh": parse_bool(os.getenv("FORCE_REFRESH"), False),
         "low_score_refresh_days": int(os.getenv("LOW_SCORE_REFRESH_DAYS", "3")),
@@ -77,7 +78,7 @@ def load_env() -> tuple[OpenAI, dict]:
         "empty_report_email": parse_bool(os.getenv("EMPTY_REPORT_EMAIL"), False),
     }
 
-    client_kwargs = {"api_key": api_key}
+    client_kwargs = {"api_key": api_key, "timeout": float(os.getenv("AI_TIMEOUT_SECONDS", "60")), "max_retries": 0}
     if base_url:
         client_kwargs["base_url"] = base_url
 
@@ -393,6 +394,8 @@ def load_pending_pool(conn: sqlite3.Connection, days: int, limit: int) -> list[d
                 "相关性分数": row[12],
                 "可借鉴启发": analysis.get("可借鉴启发", ""),
                 "原始分析": analysis.get("原始分析", ""),
+                "分析模型": analysis.get("分析模型", "历史缓存未记录"),
+                "模型切换原因": analysis.get("模型切换原因", ""),
             }
         )
     return items
@@ -565,6 +568,26 @@ def parse_analysis_text(text: str) -> dict:
     return result
 
 
+def validate_analysis(text: str) -> dict:
+    text = text.strip()
+    if text.startswith("```") and text.endswith("```"):
+        text = "\n".join(text.splitlines()[1:-1])
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        raise ValueError("论文分析格式检查失败：模型未返回有效 JSON") from None
+    fields = ["中文摘要", "研究主题", "空间/场景类型", "研究场景", "自变量", "因变量",
+              "行为指标", "生理/感知指标", "研究方法", "数据/样本", "主要结论",
+              "与建筑/体育空间/疗愈环境研究相关性", "可借鉴启发"]
+    if not isinstance(data, dict) or any(not isinstance(data.get(k), str) or not data[k].strip() for k in fields):
+        raise ValueError("论文分析格式检查失败：缺少必需字段或字段内容为空")
+    score = data.get("相关性分数")
+    if type(score) is not int or not 0 <= score <= 100:
+        raise ValueError("论文分析格式检查失败：相关性分数必须为 0–100 整数")
+    data["原始分析"] = text
+    return data
+
+
 def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3, fallback_model: str | None = None) -> dict:
     prompt = f"""
 你是一个建筑学、体育空间、VR环境、行为轨迹与疗愈空间领域的专业文献分析助手。
@@ -630,13 +653,16 @@ JSON 必须包含以下字段：
                     messages=[{"role": "user", "content": prompt}],
                 )
                 text = (response.choices[0].message.content or "").strip()
-                result = parse_analysis_text(text)
+                result = validate_analysis(text)
                 result["分析状态"] = "success"
+                result["分析模型"] = m
+                result["模型切换原因"] = str(last_error) if m != model and last_error else ""
+                logger.info("论文分析完成，使用模型：%s", m)
                 return result
             except Exception as e:
-                last_error = e
+                last_error = error_message(e, getattr(client, "api_key", ""))
                 tag = "主模型" if m == model else "备用模型"
-                logger.warning("LLM 分析(%s %s)第 %d 次失败: %s", tag, m, attempt, e)
+                logger.warning("LLM 分析(%s %s)第 %d 次失败: %s", tag, m, attempt, last_error)
                 if attempt < retries:
                     time.sleep(retry_delay * (2 ** (attempt - 1)))
         logger.warning("LLM 模型 %s 重试 %d 次失败,切换至下一模型", m, retries)
@@ -1022,6 +1048,8 @@ def result_to_row(query_name: str, item: dict, analysis: dict) -> dict:
         "相关性分数": analysis.get("相关性分数", 0),
         "可借鉴启发": analysis.get("可借鉴启发", ""),
         "原始分析": analysis.get("原始分析", ""),
+        "分析模型": analysis.get("分析模型", "历史缓存未记录"),
+        "模型切换原因": analysis.get("模型切换原因", ""),
     }
 
 
@@ -1189,6 +1217,9 @@ def write_markdown(md_path: str, df: pd.DataFrame, today_str: str, report_top_n:
             f.write(f"- 分组:{row['query_name']}\n")
             f.write(f"- 链接：{row['url']}\n")
             f.write(f"- 中文摘要：{row['中文摘要']}\n")
+            f.write(f"- 分析模型：{row.get('分析模型', '历史缓存未记录')}\n")
+            if row.get("模型切换原因"):
+                f.write(f"- 模型切换原因：{row['模型切换原因']}\n")
             f.write(f"- 可借鉴启发：{row['可借鉴启发']}\n\n")
 
         grouped = df.sort_values(by=["query_name", "相关性分数"], ascending=[True, False]).groupby("query_name")
@@ -1236,7 +1267,7 @@ def main():
     exclude_keywords = config.get("exclude_keywords", [])
     must_have_keywords = config.get("must_have_keywords", [])
     db_path = config.get("db_path", DB_PATH)
-    analysis_retries = config.get("analysis_retries", 3)
+    analysis_retries = int(os.getenv("AI_RETRIES", str(config.get("analysis_retries", 3))))
     retry_delay_seconds = config.get("retry_delay_seconds", 3)
     min_relevance_score = runtime["min_relevance_score"]
     force_refresh = runtime["force_refresh"]
@@ -1580,4 +1611,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        with operation_lock(os.getcwd()):
+            main()
+    except RuntimeError as exc:
+        logger.error("%s", exc)
+        raise SystemExit(1)

@@ -273,91 +273,21 @@ output/
 
 ## 9. 一条命令部署到 VPS
 
-如果你的 VPS 已经有 `curl`，推荐直接使用统一入口脚本：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | bash
-```
-
-如果你不是 root，则使用：
+适用于 Ubuntu / Debian、Python 3.10+、systemd。首次安装或迁移旧版控制台：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | sudo bash
 ```
 
-也就是说，现在推荐的用户入口不再是直接操作 `deploy.sh`，而是直接进入 `esag`。
+root 用户可将 `sudo bash` 换为 `bash`。选择 `1`，安装后进入 AI 配置向导：接口名称 → Base URL → 隐藏输入 Key → 同步与选择模型 → 小样本验证 → 保存。
 
-现在的 `esag` 更接近扁平化的一层主菜单，常用动作会直接放在一级，例如：
+API 验证会产生少量调用费用，执行前询问。首次配置成功后启用每日任务；取消则保留安装，稍后用 `sudo esag` 完成设置，并在抓取设置中启用定时任务。
 
-- 安装 / 重装
-- 运行状态总览
-- 立即运行一次
-- 核心配置
-- 邮件配置
-- 数据源 / CORE
-- 查看最近日志
-- 查看数据库总览
-- 查看待展示池
-- 测试邮箱
-- 更新 `esag` 控制台脚本本体
-- 升级程序（保留当前配置）
-- 全量重配
-- 卸载
+邮件默认关闭，运行参数通过菜单单独调整。重复执行部署脚本会走保留配置和数据的更新流程，不再删除安装目录。
 
-### 这条命令符合什么预期
+完整菜单、旧版迁移、模型同步与回退说明见 [控制台指南](CONSOLE.md)。
 
-你的预期是：
-
-> 一条 bash 命令复制到 VPS 执行，然后它自动完成安装，并进入交互式配置 env 的界面。
-
-现在这个脚本的设计就是按这个预期来的。
-
-### 关于 `curl ... | sudo bash` 的说明
-
-这个安装脚本已经专门适配了下面这种执行方式：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
-```
-
-即使脚本是通过管道喂给 `bash` 的，它也会从 `/dev/tty` 读取你的交互输入，所以你仍然可以正常在终端里输入 API Key、邮件参数和运行配置。
-
-### 交互输入里的默认值说明
-
-脚本运行过程中，凡是你看到：
-
-- `[默认值]`
-- `[Y/n]`
-- `[y/N]`
-
-都表示这个问题支持直接回车使用默认项。
-
-也就是说：
-
-- 如果看到 `[默认值]`，直接回车 = 使用该默认值；
-- 如果看到 `[Y/n]` 或 `[y/N]`，直接回车 = 使用括号里给出的默认选择；
-- 邮件推送默认关闭，直接回车即可跳过；
-- CORE API 默认不配置，直接回车即可跳过；
-- 只有没有默认值的字段，才需要你明确手动输入。
-
-### 脚本会自动做什么
-
-执行后，它会：
-
-1. 安装系统依赖；
-2. 拉取项目代码；
-3. 进入交互式配置流程；
-4. 询问 OpenAI API 配置；
-5. 询问是否启用邮件推送；
-6. 询问 SMTP 参数（如果启用邮件）；
-7. 询问抓取天数、相关性阈值等运行参数；
-8. 自动生成 `.env`；
-9. 创建 Python 虚拟环境；
-10. 安装依赖；
-11. 安装 systemd 定时服务；
-12. 可选立即试运行一次。
-
-也就是说，你不需要先手动写 `.env`，部署脚本会在过程中一步步问你。
+The installer now shares the console's API wizard. Existing installations use the transactional updater and retain configuration and data. The terminal requires an interactive TTY.
 
 ---
 
@@ -408,25 +338,21 @@ python essay_agent.py
 
 ## 11. 交互式 env 配置说明
 
-如果你使用一键部署脚本，它会交互式询问你以下参数：
+运行 `sudo esag`，主菜单 `1` 进入 **AI 接口与模型**：
 
-- `OPENAI_API_KEY`
-- `OPENAI_BASE_URL`
-- `OPENAI_MODEL`
-- 当你填完 API key 和 base URL 后，脚本会自动尝试拉取可用模型列表，并展示候选模型，方便你选择
-- 如果成功拉到模型列表，你既可以输入编号（如 `1`、`2`、`3`），也可以直接输入完整模型名
-- 是否启用邮件
-- SMTP 主机、端口、用户名、密码、发件人、收件人
-- `DAYS_BACK`
-- `MAX_RESULTS_PER_QUERY`
-- `MIN_RELEVANCE_SCORE`
-- `REPORT_TOP_N`
-- `EMAIL_TOP_N`
-- `PENDING_POOL_DAYS`
-- `CORE_API_KEY`（可选）
-- 每日自动运行时间
+- 配置接口地址及隐藏输入的 API Key，保存多个接口档案；
+- 同步完整模型列表，分页搜索、编号选择或手动填写模型 ID；
+- 设置主模型和同一接口的备用模型；
+- 用内置短摘要验证真实分析结果，再保存启用；
+- 设置请求超时（默认 60 秒）和每模型尝试次数（默认 3 次）。
 
-这些参数会自动写入 `.env`，所以部署时你不需要手工先建文件。
+模型缓存按接口和 Key 隔离；超过 24 小时进入选择页会尝试刷新。同步失败保留原缓存和模型；新增模型不会自动替换当前选择。错误编号会重新提示，列表不支持时可手动填模型测试。
+
+主菜单 `2` 单独设置抓取天数、数量、评分阈值、报告数量、输出保留时间及定时任务；`4` 配置邮件；`5` 配置数据源和 CORE。已有 `.env` 自动沿用，不需要重新填写。
+
+新增环境变量：`OPENAI_FALLBACK_MODEL`、`AI_TIMEOUT_SECONDS`、`AI_RETRIES`。接口档案在 `.ai_profiles.json` 中，密钥文件权限为 600，请勿提交到 Git。
+
+Model discovery and model activation are separate: refreshing the list never changes the active model. A short, billable analysis probe validates the same structured output used by production before activation.
 
 ---
 
@@ -514,78 +440,26 @@ journalctl -u essay-agent -f
 
 ## 14. 更新与升级
 
-首次安装完成后，推荐的日常运维入口是：
-
 ```bash
 sudo esag
 ```
 
-现在的 `esag` 已经更接近一个菜单式终端控制台了，它提供：
+主菜单 `11` → **更新 / 升级**：
 
-- 状态首页
-- 首页直接显示当前已安装 commit 与最近升级时间
-- 首页显示最近一次运行统计摘要
-- 核心配置子菜单
-- 邮件配置子菜单
-- 数据源 / CORE 子菜单
-- 日志与诊断子菜单
-- 维护操作子菜单
+| 选项 | 用途 |
+|---|---|
+| 1 一键更新全部 | 更新程序、交互模块和依赖 |
+| 2 仅更新交互脚本 | 更新控制台及配套模块，需与现有程序及依赖兼容 |
+| 3 检查更新 | 查看本地和远程版本及提交说明 |
+| 4 回退上次程序版本 | 恢复代码与依赖，保留当前配置和论文数据 |
 
-通过 `esag`，你可以交互式完成：
+更新保留 API、模型、接口档案、检索配置、数据库、报告和定时时间。更新前创建快照，依赖安装到独立环境，校验或应用失败自动恢复；成功后重新打开控制台。论文任务运行期间不应用更新。更新不会重新启用原本停用的定时器。
 
-- 查看状态总览
-- 手动运行主程序
-- 直接在菜单里修改核心配置（模型、抓取天数、抓取上限、相关性阈值、报告展示数量、定时运行时间）
-- 直接在菜单里修改邮件配置
-- 交互式开关常用数据源
-- 管理 CORE API Key
-- 管理目标期刊
-- 查看日志
-- 查看数据库状态
-- 查看待展示池
-- 测试邮箱
-- 创建和恢复备份
-- 重新执行部署脚本做升级/重配
-- 卸载项目
+从旧版首次迁移使用第 9 节的远程入口。旧“全量重配”改为仅重新配置 AI，不再删除数据。程序快照与依赖环境会保留以便回退，需预留额外磁盘空间。
 
+A full update stages dependencies separately and preserves runtime data. Console-only updates require a compatible runtime contract. Rollback restores program files and dependencies, not current settings or the literature database.
 
-如果你已经部署过一次，后续想升级，推荐做法也很简单：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
-```
-
-这个部署脚本是可重复使用的。再次执行时，它会：
-
-- 拉取最新仓库代码；
-- 继续使用同一个安装目录；
-- 刷新 service / timer；
-- 如有需要重新进入交互式配置；
-- 可选再试运行一次。
-
-在 `esag` 里，现在已经把“升级程序”和“全量重配”拆开：
-
-- **升级程序（保留当前配置）**
-  - 会显示升级前后 commit
-  - 保留 `.env`、`config.yaml`、`papers.db`
-  - 首页会记录最近升级时间
-- **全量重配**
-  - 会重新进入完整部署向导
-
-### 如果你只想改运行参数
-
-```bash
-sudo nano /opt/essay-agent/.env
-sudo systemctl restart essay-agent.timer
-```
-
-### 如果你只改了 `config.yaml`
-
-```bash
-sudo nano /opt/essay-agent/config.yaml
-```
-
-下次运行时就会自动使用新的配置。
+更多边界和操作示例见 [控制台指南](CONSOLE.md)。
 
 ---
 
@@ -678,9 +552,9 @@ journalctl -u essay-agent -f
 
 ```env
 OPENAI_MODEL=gpt-4.1-mini
-DAYS_BACK=3
-MAX_RESULTS_PER_QUERY=100
-MIN_RELEVANCE_SCORE=55
+DAYS_BACK=1
+MAX_RESULTS_PER_QUERY=10
+MIN_RELEVANCE_SCORE=60
 FORCE_REFRESH=false
 LOW_SCORE_REFRESH_DAYS=3
 LOW_SCORE_REFRESH_BELOW=60

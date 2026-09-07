@@ -232,108 +232,21 @@ output/
 
 ## 9. One-Command VPS Install / 一条命令部署到 VPS
 
-If your VPS already has `curl` and `sudo`, you can deploy the project with **one bash command**.
-
-如果你的 VPS 上已经有 `curl` 和 `sudo`，你可以直接用**一条 bash 命令**部署这个项目。
-
-### Recommended unified entry / 推荐统一入口
-
-The intended user-facing entry is now the `esag` console itself.
-
-现在面向用户的推荐统一入口已经改成了 `esag` 控制台本身。
-
-For first-time bootstrap on a fresh VPS, use:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | bash
-```
-
-If you are not root, use:
+适用于 Ubuntu / Debian、Python 3.10+、systemd。首次安装或迁移旧版控制台：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/esag | sudo bash
 ```
 
-After launch, `esag` now uses a flatter first-level menu. A typical layout is:
+root 用户可将 `sudo bash` 换为 `bash`。选择 `1`，安装后进入 AI 配置向导：接口名称 → Base URL → 隐藏输入 Key → 同步与选择模型 → 小样本验证 → 保存。
 
-- install / reinstall
-- status overview
-- run now
-- core settings
-- email settings
-- sources / CORE
-- recent logs
-- database overview
-- pending pool
-- test email
-- refresh the `esag` console script itself
-- upgrade program (keep current config)
-- full reconfigure
-- uninstall
+API 验证会产生少量调用费用，执行前询问。首次配置成功后启用每日任务；取消则保留安装，稍后用 `sudo esag` 完成设置，并在抓取设置中启用定时任务。
 
-也就是说，现在 `esag` 采用的是更扁平的一层主菜单，不再强调太多层级跳转，而是把常用运维动作直接放在一级入口里。
+邮件默认关闭，运行参数通过菜单单独调整。重复执行部署脚本会走保留配置和数据的更新流程，不再删除安装目录。
 
-### What it does / 这条命令会做什么
+完整菜单、旧版迁移、模型同步与回退说明见 [控制台指南](CONSOLE.md)。
 
-This installer is designed to work correctly even when run through a pipe such as:
-
-```bash
-curl -fsSL ... | sudo bash
-```
-
-It reads interactive answers from `/dev/tty`, so you can still type values normally during the setup process.
-
-这个安装脚本已经专门适配了下面这种管道执行方式：
-
-```bash
-curl -fsSL ... | sudo bash
-```
-
-它会从 `/dev/tty` 读取交互输入，因此在安装过程中你仍然可以正常键盘输入配置值。
-
-The installer will:
-
-1. install system dependencies;
-2. pull the latest repository code;
-3. launch an **interactive configuration flow**;
-4. show prompts with visible defaults;
-5. let you press **Enter** to accept the default whenever a prompt displays `[default]`;
-6. use the default choice directly for prompts like `[Y/n]` or `[y/N]` if you just press Enter;
-7. ask you for OpenAI API settings;
-8. optionally ask you for email settings;
-9. ask for runtime parameters such as `DAYS_BACK` and `MIN_RELEVANCE_SCORE`;
-10. create the `.env` file automatically;
-11. install a Python virtual environment;
-12. install systemd service and timer;
-13. optionally run a first test execution.
-
-More concretely, during setup:
-
-- if you see `[default]`, pressing Enter means **use that default value**;
-- if you see `[Y/n]` or `[y/N]`, pressing Enter means **use the shown default choice**;
-- email delivery is optional and defaults to **disabled**;
-- CORE API is optional and defaults to **not configured**.
-
-部署脚本会自动完成：
-
-1. 安装系统依赖；
-2. 拉取最新仓库代码；
-3. 启动**交互式配置流程**；
-4. 询问 OpenAI API 配置；
-5. 可选询问邮件推送配置；
-6. 询问运行参数（如 `DAYS_BACK`、`MIN_RELEVANCE_SCORE`）；
-7. 自动生成 `.env`；
-8. 创建 Python 虚拟环境；
-9. 安装 systemd 服务与定时器；
-10. 可选立即试运行一次。
-
-So the expected experience is:
-
-> paste one command into the VPS → finish installation → enter interactive env configuration → deployment completes.
-
-也就是说，预期体验就是：
-
-> 把一条命令复制到 VPS 执行 → 自动安装 → 进入交互式 env 配置界面 → 部署完成。
+The installer now shares the console's API wizard. Existing installations use the transactional updater and retain configuration and data. The terminal requires an interactive TTY.
 
 ---
 
@@ -386,43 +299,21 @@ python essay_agent.py
 
 ## 11. Interactive Environment Configuration / 交互式环境配置
 
-If you use the one-command installer, the script will ask you for:
+运行 `sudo esag`，主菜单 `1` 进入 **AI 接口与模型**：
 
-- `OPENAI_API_KEY`
-- `OPENAI_BASE_URL` (optional)
-- `OPENAI_MODEL`
-- after `API key + base URL` are filled, the script will try to fetch the available model list automatically and show candidates for easier selection
-- if a model list is found, you can input either the **model number** (such as `1`, `2`, `3`) or the full model name
-- whether email should be enabled
-- SMTP settings if enabled
-- `DAYS_BACK`
-- `MAX_RESULTS_PER_QUERY`
-- `MIN_RELEVANCE_SCORE`
-- `REPORT_TOP_N`
-- `EMAIL_TOP_N`
-- `PENDING_POOL_DAYS`
-- optional `CORE_API_KEY`
-- daily run time for the timer
+- 配置接口地址及隐藏输入的 API Key，保存多个接口档案；
+- 同步完整模型列表，分页搜索、编号选择或手动填写模型 ID；
+- 设置主模型和同一接口的备用模型；
+- 用内置短摘要验证真实分析结果，再保存启用；
+- 设置请求超时（默认 60 秒）和每模型尝试次数（默认 3 次）。
 
-如果你使用一键安装脚本，脚本会交互式询问你：
+模型缓存按接口和 Key 隔离；超过 24 小时进入选择页会尝试刷新。同步失败保留原缓存和模型；新增模型不会自动替换当前选择。错误编号会重新提示，列表不支持时可手动填模型测试。
 
-- `OPENAI_API_KEY`
-- `OPENAI_BASE_URL`（可选）
-- `OPENAI_MODEL`
-- 是否启用邮件
-- 若启用邮件，则继续询问 SMTP 配置
-- `DAYS_BACK`
-- `MAX_RESULTS_PER_QUERY`
-- `MIN_RELEVANCE_SCORE`
-- `REPORT_TOP_N`
-- `EMAIL_TOP_N`
-- `PENDING_POOL_DAYS`
-- 可选的 `CORE_API_KEY`
-- 每日定时运行时间
+主菜单 `2` 单独设置抓取天数、数量、评分阈值、报告数量、输出保留时间及定时任务；`4` 配置邮件；`5` 配置数据源和 CORE。已有 `.env` 自动沿用，不需要重新填写。
 
-This means you do **not** need to manually write the `.env` file during deployment unless you want to adjust settings later.
+新增环境变量：`OPENAI_FALLBACK_MODEL`、`AI_TIMEOUT_SECONDS`、`AI_RETRIES`。接口档案在 `.ai_profiles.json` 中，密钥文件权限为 600，请勿提交到 Git。
 
-这意味着在部署过程中，你**不需要自己手写 `.env`**，除非后面想手动调整参数。
+Model discovery and model activation are separate: refreshing the list never changes the active model. A short, billable analysis probe validates the same structured output used by production before activation.
 
 ---
 
@@ -517,108 +408,26 @@ journalctl -u essay-agent -f
 
 ## 14. Update and Upgrade / 更新与升级
 
-After the first installation, the recommended daily operations entry is:
-
 ```bash
 sudo esag
 ```
 
-首次安装完成后，推荐的日常运维入口就是：
+主菜单 `11` → **更新 / 升级**：
 
-```bash
-sudo esag
-```
+| 选项 | 用途 |
+|---|---|
+| 1 一键更新全部 | 更新程序、交互模块和依赖 |
+| 2 仅更新交互脚本 | 更新控制台及配套模块，需与现有程序及依赖兼容 |
+| 3 检查更新 | 查看本地和远程版本及提交说明 |
+| 4 回退上次程序版本 | 恢复代码与依赖，保留当前配置和论文数据 |
 
-With `esag`, you now get a more panel-like terminal experience with:
+更新保留 API、模型、接口档案、检索配置、数据库、报告和定时时间。更新前创建快照，依赖安装到独立环境，校验或应用失败自动恢复；成功后重新打开控制台。论文任务运行期间不应用更新。更新不会重新启用原本停用的定时器。
 
-- a status homepage,
-- current installed commit and recent upgrade time on the homepage,
-- a latest run stats summary on the homepage,
-- submenus for core settings,
-- submenus for email settings,
-- submenus for sources / CORE,
-- submenus for logs and diagnostics,
-- a maintenance section for run / upgrade / uninstall.
+从旧版首次迁移使用第 9 节的远程入口。旧“全量重配”改为仅重新配置 AI，不再删除数据。程序快照与依赖环境会保留以便回退，需预留额外磁盘空间。
 
-In practice, `esag` can interactively:
+A full update stages dependencies separately and preserves runtime data. Console-only updates require a compatible runtime contract. Rollback restores program files and dependencies, not current settings or the literature database.
 
-- show a dashboard-like overview,
-- run the program manually,
-- modify core settings directly from the menu (model, days, max results, score threshold, report sizes, timer time),
-- modify email settings directly from the menu,
-- toggle common data sources interactively,
-- manage CORE API settings,
-- manage target journals,
-- inspect logs,
-- inspect database status,
-- inspect pending pool,
-- test email,
-- create and restore backups,
-- re-run deploy for upgrades,
-- uninstall the project.
-
-通过 `esag`，你可以交互式完成：
-
-- 手动运行主程序
-- 修改 `.env`
-- 修改 `config.yaml`
-- 查看日志
-- 查看数据库状态
-- 查看待展示池
-- 测试邮箱
-- 重新部署升级
-- 卸载项目
-
-
-If you already deployed the project once and want to update it later, the recommended approach is simple:
-
-如果你已经部署过一次，后续想升级，推荐做法也很简单：
-
-### Recommended upgrade flow / 推荐升级流程
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wannaqueen66-create/essay-agent/main/deploy.sh | sudo bash
-```
-
-The deploy script is designed to be reusable. Running it again will:
-
-- pull the latest repository code,
-- keep using the same installation directory,
-- recreate / refresh service files,
-- let you re-enter interactive configuration if needed,
-- and optionally run a test execution again.
-
-In `esag`, the dedicated upgrade path now separates this from full reconfiguration:
-
-- **Upgrade program (keep current config)**
-  - shows upgrade before/after commit
-  - preserves `.env`, `config.yaml`, and `papers.db`
-  - records the latest upgrade time on the dashboard
-- **Full reconfigure**
-  - re-runs the full deploy wizard
-
-这个部署脚本是可重复使用的。再次执行时，它会：
-
-- 拉取最新仓库代码；
-- 继续使用同一个安装目录；
-- 刷新 service / timer；
-- 如有需要重新进入交互式配置；
-- 可选再试运行一次。
-
-### If you only want to edit runtime settings / 如果你只想改运行参数
-
-```bash
-sudo nano /opt/essay-agent/.env
-sudo systemctl restart essay-agent.timer
-```
-
-### If you changed only `config.yaml` / 如果你只改了 `config.yaml`
-
-```bash
-sudo nano /opt/essay-agent/config.yaml
-```
-
-Then the next scheduled run will use the updated config.
+更多边界和操作示例见 [控制台指南](CONSOLE.md)。
 
 ---
 
@@ -723,9 +532,9 @@ If you are running this for the first time, use this safer starter setup:
 
 ```env
 OPENAI_MODEL=gpt-4.1-mini
-DAYS_BACK=3
-MAX_RESULTS_PER_QUERY=100
-MIN_RELEVANCE_SCORE=55
+DAYS_BACK=1
+MAX_RESULTS_PER_QUERY=10
+MIN_RELEVANCE_SCORE=60
 FORCE_REFRESH=false
 LOW_SCORE_REFRESH_DAYS=3
 LOW_SCORE_REFRESH_BELOW=60
@@ -738,14 +547,14 @@ Why this is recommended:
 - still keeps API cost under control
 - less likely to freeze on old low-score cache results
 - reduces repeated empty daily emails
-- gives a slightly wider recent-paper window for debugging
+- lets you widen the recent-paper window from the console when debugging
 
 推荐原因：
 
 - 依然能控制 API 成本
 - 不容易被旧的低分缓存结果“冻住”
 - 可以减少重复的空日报
-- 略宽一点的近期时间窗更适合排查问题
+- 需要扩大近期时间窗时，可在抓取设置中增加天数
 
 ---
 

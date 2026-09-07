@@ -34,23 +34,8 @@ except Exception:
 
 
 def load_env_file(path: str = ".env") -> dict:
-    env = {}
-    p = Path(path)
-    if not p.exists():
-        return env
-    for raw in p.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("export "):
-            line = line[len("export ") :].strip()
-        if "=" not in line:
-            continue
-        k, v = line.split("=", 1)
-        k = k.strip()
-        v = v.strip().strip('"').strip("'")
-        env[k] = v
-    return env
+    from agent_config import read_env
+    return read_env(Path(path))
 
 
 def need(env: dict, k: str) -> str:

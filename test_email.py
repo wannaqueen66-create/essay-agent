@@ -12,7 +12,7 @@ def parse_bool(value: str | None, default: bool = False) -> bool:
 
 
 def main():
-    load_dotenv()
+    load_dotenv(interpolate=False)
 
     host = os.getenv("EMAIL_SMTP_HOST", "smtp-relay.brevo.com")
     port = int(os.getenv("EMAIL_SMTP_PORT", "587"))
