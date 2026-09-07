@@ -190,6 +190,61 @@ class ModelTests(TempCase):
             self.assertFalse(console.save_profile(store, dict(self.profile, model='bad')))
         self.assertEqual((self.root / '.env').read_bytes(), before)
 
+    def test_primary_change_does_not_test_broken_fallback(self):
+        store = config.ProfileStore(self.root)
+        profile = dict(self.profile, fallback='broken-fallback')
+        store.activate(profile)
+        with patch.object(console, 'test_profile', return_value=True) as probe, patch('builtins.input', return_value='y'):
+            self.assertTrue(console.save_profile(store, dict(profile, model='new-primary')))
+        self.assertEqual(probe.call_args.kwargs['fields'], ('model',))
+        self.assertEqual(store.active()['model'], 'new-primary')
+        self.assertEqual(store.active()['fallback'], 'broken-fallback')
+
+    def test_fallback_change_does_not_test_broken_primary(self):
+        store = config.ProfileStore(self.root)
+        profile = dict(self.profile, model='broken-primary')
+        store.activate(profile)
+        with patch.object(console, 'test_profile', return_value=True) as probe, patch('builtins.input', return_value='y'):
+            self.assertTrue(console.save_profile(store, dict(profile, fallback='new-backup')))
+        self.assertEqual(probe.call_args.kwargs['fields'], ('fallback',))
+        self.assertEqual(store.active()['model'], 'broken-primary')
+        self.assertEqual(store.active()['fallback'], 'new-backup')
+
+    def test_disable_fallback_makes_no_api_test(self):
+        store = config.ProfileStore(self.root)
+        profile = dict(self.profile, fallback='broken')
+        store.activate(profile)
+        with patch.object(console, 'test_profile') as probe, patch('builtins.input', return_value='y'):
+            self.assertTrue(console.save_profile(store, dict(profile, fallback=''), test_fields=('fallback',)))
+        probe.assert_not_called()
+        self.assertEqual(store.active()['fallback'], '')
+
+    def test_endpoint_change_revalidates_both_models(self):
+        store = config.ProfileStore(self.root)
+        profile = dict(self.profile, fallback='backup')
+        store.activate(profile)
+        with patch.object(console, 'test_profile', return_value=True) as probe, patch('builtins.input', return_value='y'):
+            self.assertTrue(console.save_profile(store, dict(profile, base_url='https://new.example/v1')))
+        self.assertEqual(probe.call_args.kwargs['fields'], ('model', 'fallback'))
+
+    def test_role_scoped_probe_calls_only_selected_model(self):
+        profile = dict(self.profile, fallback='backup')
+        with patch('openai.OpenAI'), patch.object(agent, 'analyze_paper', return_value={'分析状态': 'success'}) as analyze, patch('builtins.input', return_value='y'):
+            self.assertTrue(console.test_profile(profile, fields=('fallback',)))
+        analyze.assert_called_once()
+        self.assertEqual(analyze.call_args.args[1], 'backup')
+        self.assertEqual(analyze.call_args.kwargs['model_role'], '备用模型')
+
+    def test_failed_fallback_change_preserves_both_models(self):
+        store = config.ProfileStore(self.root)
+        profile = dict(self.profile, fallback='old-backup')
+        store.activate(profile)
+        with patch.object(console, 'test_profile', return_value=False) as probe:
+            self.assertFalse(console.save_profile(store, dict(profile, fallback='bad-new-backup')))
+        self.assertEqual(probe.call_args.kwargs['fields'], ('fallback',))
+        self.assertEqual(store.active()['fallback'], 'old-backup')
+        self.assertEqual(store.active()['model'], profile['model'])
+
 
 class AnalysisTests(unittest.TestCase):
     def test_strict_analysis_validation(self):

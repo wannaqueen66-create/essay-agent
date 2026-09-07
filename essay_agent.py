@@ -588,7 +588,7 @@ def validate_analysis(text: str) -> dict:
     return data
 
 
-def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3, fallback_model: str | None = None) -> dict:
+def analyze_paper(client: OpenAI, model: str, title: str, abstract: str, retries: int = 3, retry_delay: int = 3, fallback_model: str | None = None, model_role: str = "主模型") -> dict:
     prompt = f"""
 你是一个建筑学、体育空间、VR环境、行为轨迹与疗愈空间领域的专业文献分析助手。
 
@@ -661,11 +661,12 @@ JSON 必须包含以下字段：
                 return result
             except Exception as e:
                 last_error = error_message(e, getattr(client, "api_key", ""))
-                tag = "主模型" if m == model else "备用模型"
+                tag = model_role if m == model else "备用模型"
                 logger.warning("LLM 分析(%s %s)第 %d 次失败: %s", tag, m, attempt, last_error)
                 if attempt < retries:
                     time.sleep(retry_delay * (2 ** (attempt - 1)))
-        logger.warning("LLM 模型 %s 重试 %d 次失败,切换至下一模型", m, retries)
+        next_step = "切换至下一模型" if m != models_to_try[-1] else "已无其他候选模型"
+        logger.warning("LLM 模型 %s 尝试 %d 次失败，%s", m, retries, next_step)
 
     return {
         "中文摘要": "",
