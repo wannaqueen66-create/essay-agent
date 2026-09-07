@@ -126,10 +126,14 @@ def select_model(store, profile, field, refresh=True):
             print("未找到该选项；列表外模型请用 m 手动填写。")
 
 
-def test_profile(profile):
+def test_profile(profile, fields=("model", "fallback")):
     from openai import OpenAI
     from essay_agent import analyze_paper
-    print("将用内置短摘要测试主模型及已配置的备用模型，会产生少量 API 调用费用。")
+    roles = {"model": "主模型", "fallback": "备用模型"}
+    targets = [(roles[field], profile[field]) for field in fields if profile[field]]
+    if not targets:
+        return True
+    print("将用内置短摘要测试" + "、".join(role for role, _ in targets) + "，会产生少量 API 调用费用。")
     if not yes("开始测试？"):
         return None
     client = OpenAI(api_key=profile["api_key"], base_url=normalize_url(profile["base_url"]),
@@ -137,32 +141,38 @@ def test_profile(profile):
     passed = True
     profile.setdefault("tests", {})
     try:
-        for model in dict.fromkeys(m for m in (profile["model"], profile["fallback"]) if m):
+        for role, model in targets:
             start = time.monotonic()
             result = analyze_paper(client, model, "Indoor greenery and perceived restoration",
                                    "Twenty adults viewed indoor rooms with and without plants in virtual reality. "
                                    "Perceived restoration was measured by questionnaire. Rooms with plants received higher scores.",
-                                   retries=1, retry_delay=0)
+                                   retries=1, retry_delay=0, model_role=role)
             ok = result.get("分析状态") == "success"
             status = "通过" if ok else "失败"
             profile["tests"][model] = {"status": status, "at": now(), "seconds": round(time.monotonic() - start, 2)}
-            print(f"{model}: {status}，{profile['tests'][model]['seconds']} 秒")
+            print(f"{role} {model}: {status}，{profile['tests'][model]['seconds']} 秒")
             if not ok:
                 print(result.get("原始分析", "格式验证失败"))
             passed = passed and ok
     finally:
         client.close()
-    return passed and bool(profile["model"])
+    return passed
 
 
-def save_profile(store, draft, require_test=True):
+def save_profile(store, draft, require_test=True, test_fields=None):
     old = store.active()
     print(f"变更：接口 {old['name']} → {draft['name']}；主模型 {old['model'] or '未选'} → {draft['model'] or '未选'}；"
           f"备用 {old['fallback'] or '关闭'} → {draft['fallback'] or '关闭'}")
     if not draft["api_key"] or not draft["model"]:
         print("Key 和主模型不能为空，尚未保存。")
         return False
-    if require_test and test_profile(draft) is not True:
+    if test_fields is None:
+        shared_changed = any(old.get(key) != draft.get(key) for key in ("name", "base_url", "api_key", "timeout", "retries"))
+        test_fields = tuple(field for field in ("model", "fallback")
+                            if draft[field] and (shared_changed or old[field] != draft[field]))
+    # Clearing a fallback never makes an API call or depends on primary health.
+    test_fields = tuple(field for field in test_fields if draft[field])
+    if require_test and test_fields and test_profile(draft, fields=test_fields) is not True:
         print("测试未通过或已取消，原配置保持不变。")
         return False
     if not yes("保存并从下次任务开始启用？", True):
@@ -224,7 +234,7 @@ def ai_menu():
                 sync(store, profile)
             elif choice in ("3", "4"):
                 if select_model(store, draft, "model" if choice == "3" else "fallback"):
-                    save_profile(store, draft)
+                    save_profile(store, draft, test_fields=("model",) if choice == "3" else ("fallback",))
             elif choice == "5":
                 if test_profile(draft) is not None:
                     # Save test metadata only, without changing runtime settings.
