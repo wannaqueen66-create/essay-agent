@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 
 def main():
-    load_dotenv()
+    load_dotenv(interpolate=False)
     db_path = os.getenv("DB_PATH", "papers.db")
 
     if not os.path.exists(db_path):

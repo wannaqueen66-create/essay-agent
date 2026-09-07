@@ -1,0 +1,4 @@
+{
+  "runtime_api": 1,
+  "description": "Console uses essay_agent.analyze_paper with strict structured analysis validation"
+}

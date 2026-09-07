@@ -4,6 +4,8 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+User=essay-agent
+Group=essay-agent
 Type=oneshot
 WorkingDirectory=/opt/essay-agent
 ExecStart=/opt/essay-agent/.venv/bin/python essay_agent.py

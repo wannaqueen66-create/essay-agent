@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 
 def main():
-    load_dotenv()
+    load_dotenv(interpolate=False)
     db_path = os.getenv("DB_PATH", "papers.db")
     pending_days = int(os.getenv("PENDING_POOL_DAYS", "7"))
     limit = int(os.getenv("REPORT_TOP_N", "10"))
